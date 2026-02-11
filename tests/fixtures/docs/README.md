@@ -12,7 +12,7 @@ Follow these steps to get started with the project.
 
 ### Prerequisites
 
-You need PHP 8.2+ and Composer installed.
+You need PHP 8.3+ and Composer installed.
 
 ## Features
 
