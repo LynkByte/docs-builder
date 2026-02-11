@@ -6,7 +6,7 @@ Install the package via Composer.
 
 | Requirement | Version |
 |-------------|---------|
-| PHP         | ^8.2    |
+| PHP         | ^8.3    |
 | Laravel     | ^11.0   |
 
 ## Install

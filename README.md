@@ -1,5 +1,5 @@
 <p align="center">
-    <img src="https://img.shields.io/badge/PHP-8.2+-8892BF?style=flat-square&logo=php&logoColor=white" alt="PHP Version">
+    <img src="https://img.shields.io/badge/PHP-8.3+-8892BF?style=flat-square&logo=php&logoColor=white" alt="PHP Version">
     <img src="https://img.shields.io/badge/Laravel-11.x%20|%2012.x-FF2D20?style=flat-square&logo=laravel&logoColor=white" alt="Laravel Version">
     <img src="https://img.shields.io/badge/Tailwind%20CSS-v4-38BDF8?style=flat-square&logo=tailwindcss&logoColor=white" alt="Tailwind CSS">
     <img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="License">
@@ -24,7 +24,7 @@ A Laravel package that compiles Markdown files and OpenAPI 3.x YAML specificatio
 
 ## Requirements
 
-- PHP 8.2 or higher
+- PHP 8.3 or higher
 - Laravel 11.x or 12.x
 
 ## Installation
