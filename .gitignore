@@ -1,0 +1,12 @@
+/vendor/
+/node_modules/
+.phpunit.result.cache
+.phpunit.cache/
+phpunit.xml
+composer.lock
+package-lock.json
+.idea/
+.vscode/
+*.swp
+*.swo
+tests/temp/
