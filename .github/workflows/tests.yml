@@ -46,4 +46,4 @@ jobs:
           composer install --prefer-dist --no-interaction
 
       - name: Run tests
-        run: vendor/bin/pest --compact
+        run: vendor/bin/pest
