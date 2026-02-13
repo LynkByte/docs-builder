@@ -1,3 +1,4 @@
+<!-- docs-builder:start -->
 # lynkbyte/docs-builder
 
 > A Laravel package that compiles Markdown files and OpenAPI 3.x YAML specifications into a fully themed, searchable, static documentation site — with zero frontend build step required.
@@ -41,6 +42,7 @@ View the output at `public/docs/index.html` or `/docs` in your running app.
 ## Artisan Commands
 
 - `docs:init` — Scaffolds config, `docs/README.md`, and `docs/openapi.yaml`. Options: `--force`
+- `docs:ai` — Publishes AI coding assistant configurations (llms.txt, Cursor rules, Copilot instructions, Claude instructions). Appends to existing files with sentinel markers. Options: `--force`
 - `docs:build` — Builds the static site from Markdown and OpenAPI sources. Options: `--skip-assets`
 
 ## Core Architecture
@@ -85,3 +87,4 @@ Six publishable groups for granular customization:
 ## Detailed Documentation
 
 - [llms-full.txt](llms-full.txt): Comprehensive reference with full configuration options, all class methods, Blade template structure, build pipeline details, code examples, and customization guide.
+<!-- docs-builder:end -->

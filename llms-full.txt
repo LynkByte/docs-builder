@@ -54,19 +54,38 @@ Scaffolds a starter documentation directory with example files.
 ```bash
 php artisan docs:init
 php artisan docs:init --force   # Overwrite existing files
-php artisan docs:init --with-ai=llms --with-ai=cursor   # Include specific AI tool configs
 ```
 
 **Options:**
 - `--force` — Overwrite existing config and stub files.
-- `--with-ai=<tool>` — Include AI tool configurations without the interactive prompt. Repeatable. Valid values: `llms`, `cursor`, `copilot`, `claude`.
 
 **Behavior:**
 1. Publishes `config/docs-builder.php` (skips if exists, unless `--force`)
 2. Creates `docs/` directory if it doesn't exist
 3. Copies `docs/README.md` and `docs/openapi.yaml` from stubs (skips if exist, unless `--force`)
 4. Uses published stubs from `stubs/docs-builder/` if they exist, otherwise uses package defaults
-5. Prompts for AI tool configurations (interactive) or uses `--with-ai` flags (non-interactive)
+
+### `docs:ai`
+
+Publishes AI coding assistant configurations for docs-builder.
+
+```bash
+php artisan docs:ai
+php artisan docs:ai --force   # Replace existing docs-builder sections
+```
+
+**Options:**
+- `--force` — Replace existing docs-builder sections while preserving user content.
+
+**Behavior:**
+- Presents interactive multi-select prompt for tool selection (publishes all in non-interactive mode)
+- Appendable files (`llms.txt`, `llms-full.txt`, `copilot-instructions.md`, `CLAUDE.md`):
+  - Creates with sentinel markers if missing
+  - Appends with `---` separator if file exists without markers
+  - Skips if markers already present (use `--force` to replace)
+  - `--force` replaces only the docs-builder section between markers
+- Standalone files (`.cursor/rules/docs-builder.mdc`):
+  - Creates if missing, skips if exists (use `--force` to overwrite)
 
 **AI tool configurations:**
 
@@ -542,7 +561,7 @@ Auto-discovered Laravel service provider.
 
 **`boot()`:**
 - Loads Blade views from `resources/views` under the `docs-builder` namespace
-- Registers `docs:init` and `docs:build` commands (console only)
+- Registers `docs:init`, `docs:ai`, and `docs:build` commands (console only)
 - Defines seven publishable asset groups (see Publishing section)
 
 ---
@@ -866,6 +885,7 @@ docs-builder/
 │       └── partials/               # Reusable partials (header, sidebar, toc, search, footer)
 ├── src/
 │   ├── Commands/
+│   │   ├── AiDocsCommand.php       # docs:ai Artisan command
 │   │   ├── BuildDocsCommand.php    # docs:build Artisan command
 │   │   └── InitDocsCommand.php     # docs:init Artisan command
 │   ├── DocsBuilder.php             # Core build orchestrator

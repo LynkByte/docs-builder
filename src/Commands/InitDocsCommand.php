@@ -5,8 +5,6 @@ namespace LynkByte\DocsBuilder\Commands;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 
-use function Laravel\Prompts\multiselect;
-
 class InitDocsCommand extends Command
 {
     /**
@@ -15,8 +13,7 @@ class InitDocsCommand extends Command
      * @var string
      */
     protected $signature = 'docs:init
-                            {--force : Overwrite existing files}
-                            {--with-ai=* : Include AI tool configurations (llms, cursor, copilot, claude)}';
+                            {--force : Overwrite existing files}';
 
     /**
      * The console command description.
@@ -24,39 +21,6 @@ class InitDocsCommand extends Command
      * @var string
      */
     protected $description = 'Scaffold a starter documentation directory with example files';
-
-    /**
-     * Available AI tool configurations and their file mappings.
-     *
-     * @var array<string, array{label: string, files: array<array{stub: string, dest: string}>}>
-     */
-    private const AI_TOOLS = [
-        'llms' => [
-            'label' => 'llms.txt — LLM-friendly documentation',
-            'files' => [
-                ['stub' => 'llms.txt', 'dest' => 'llms.txt'],
-                ['stub' => 'llms-full.txt', 'dest' => 'llms-full.txt'],
-            ],
-        ],
-        'cursor' => [
-            'label' => 'Cursor — .cursor/rules/',
-            'files' => [
-                ['stub' => 'cursor-rules.mdc', 'dest' => '.cursor/rules/docs-builder.mdc'],
-            ],
-        ],
-        'copilot' => [
-            'label' => 'GitHub Copilot — .github/copilot-instructions.md',
-            'files' => [
-                ['stub' => 'copilot-instructions.md', 'dest' => '.github/copilot-instructions.md'],
-            ],
-        ],
-        'claude' => [
-            'label' => 'Claude — CLAUDE.md',
-            'files' => [
-                ['stub' => 'CLAUDE.md', 'dest' => 'CLAUDE.md'],
-            ],
-        ],
-    ];
 
     /**
      * Execute the console command.
@@ -70,9 +34,6 @@ class InitDocsCommand extends Command
 
         // Step 2: Create docs directory with stub files
         $this->scaffoldDocs();
-
-        // Step 3: AI tool configurations
-        $this->scaffoldAiTools();
 
         $this->newLine();
         $this->components->info('Documentation initialized successfully!');
@@ -143,79 +104,6 @@ class InitDocsCommand extends Command
     }
 
     /**
-     * Prompt for and scaffold AI tool configuration files.
-     */
-    private function scaffoldAiTools(): void
-    {
-        $selectedTools = $this->resolveAiToolSelection();
-
-        if ($selectedTools === []) {
-            return;
-        }
-
-        $this->newLine();
-        $this->components->info('Adding AI tool configurations...');
-
-        $force = (bool) $this->option('force');
-
-        foreach ($selectedTools as $toolKey) {
-            $tool = self::AI_TOOLS[$toolKey];
-
-            foreach ($tool['files'] as $file) {
-                $stubPath = $this->aiStubsPath($file['stub']);
-                $targetPath = base_path($file['dest']);
-                $targetDir = dirname($targetPath);
-
-                if (file_exists($targetPath) && ! $force) {
-                    $this->components->warn("{$file['dest']} already exists, skipping. Use --force to overwrite.");
-
-                    continue;
-                }
-
-                if (! is_dir($targetDir)) {
-                    File::makeDirectory($targetDir, 0755, true);
-                }
-
-                $this->components->task("Creating {$file['dest']}", function () use ($stubPath, $targetPath): void {
-                    File::copy($stubPath, $targetPath);
-                });
-            }
-        }
-    }
-
-    /**
-     * Resolve which AI tools were selected via --with-ai flags or interactive prompt.
-     *
-     * @return array<string>
-     */
-    private function resolveAiToolSelection(): array
-    {
-        $withAi = $this->option('with-ai');
-
-        // Explicit --with-ai flags provided
-        if ($withAi !== []) {
-            return array_values(array_intersect($withAi, array_keys(self::AI_TOOLS)));
-        }
-
-        // Non-interactive mode: skip AI selection
-        if (! $this->input->isInteractive() || app()->runningUnitTests()) {
-            return [];
-        }
-
-        // Interactive: show multiselect prompt
-        $options = [];
-        foreach (self::AI_TOOLS as $key => $tool) {
-            $options[$key] = $tool['label'];
-        }
-
-        return multiselect(
-            label: 'Which AI tool configurations would you like to include?',
-            options: $options,
-            hint: 'Use space to select, enter to confirm. Leave empty to skip.',
-        );
-    }
-
-    /**
      * Resolve the path to a stub file.
      *
      * Uses published stubs from the host app (stubs/docs-builder/) if they
@@ -230,23 +118,6 @@ class InitDocsCommand extends Command
         }
 
         return dirname(__DIR__, 2).'/stubs/'.$relativePath;
-    }
-
-    /**
-     * Resolve the path to an AI stub file.
-     *
-     * Uses published stubs from the host app (stubs/docs-builder/ai/) if they
-     * exist, otherwise falls back to the package's own stubs/ai/ directory.
-     */
-    private function aiStubsPath(string $relativePath): string
-    {
-        $publishedPath = base_path('stubs/docs-builder/ai/'.$relativePath);
-
-        if (file_exists($publishedPath)) {
-            return $publishedPath;
-        }
-
-        return dirname(__DIR__, 2).'/stubs/ai/'.$relativePath;
     }
 
     /**
