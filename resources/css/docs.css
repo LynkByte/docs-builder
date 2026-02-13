@@ -456,6 +456,29 @@ body {
 .hl-deletion { color: #ff5370; background: rgba(255, 83, 112, 0.1); }
 
 /* ====================
+   MERMAID DIAGRAMS
+   ==================== */
+.docs-mermaid-block {
+    margin: 1.5rem 0;
+    border-radius: 0.75rem;
+    border: 1px solid var(--docs-border);
+    background: var(--docs-surface);
+    overflow: hidden;
+    padding: 1.5rem;
+    text-align: center;
+}
+
+.docs-mermaid-block pre.mermaid {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    margin: 0;
+    padding: 0;
+    color: var(--docs-text);
+    overflow-x: auto;
+}
+
+/* ====================
    SEARCH MODAL
    ==================== */
 .docs-search-overlay {

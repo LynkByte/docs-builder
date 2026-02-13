@@ -27,6 +27,7 @@ import Fuse from 'fuse.js';
         document.documentElement.classList.toggle('dark', theme === 'dark');
         localStorage.setItem(THEME_KEY, theme);
         updateThemeToggleIcons(theme);
+        reRenderMermaidDiagrams(theme);
     }
 
     function updateThemeToggleIcons(theme) {
@@ -56,6 +57,47 @@ import Fuse from 'fuse.js';
                 applyTheme(e.matches ? 'dark' : 'light');
             }
         });
+    }
+
+    // =========================================================================
+    // MERMAID DIAGRAM THEME SYNC
+    // =========================================================================
+    function initMermaidSource() {
+        document.querySelectorAll('.docs-mermaid-block pre.mermaid').forEach(el => {
+            if (!el.getAttribute('data-mermaid-source')) {
+                el.setAttribute('data-mermaid-source', el.textContent);
+            }
+        });
+    }
+
+    async function reRenderMermaidDiagrams(theme) {
+        if (typeof mermaid === 'undefined') {
+            return;
+        }
+
+        const blocks = document.querySelectorAll('.docs-mermaid-block pre.mermaid');
+        if (!blocks.length) {
+            return;
+        }
+
+        mermaid.initialize({
+            startOnLoad: false,
+            theme: theme === 'dark' ? 'dark' : 'default',
+        });
+
+        for (let i = 0; i < blocks.length; i++) {
+            const el = blocks[i];
+            const source = el.getAttribute('data-mermaid-source');
+            if (!source) {
+                continue;
+            }
+            try {
+                const { svg } = await mermaid.render('mermaid-re-' + i, source);
+                el.innerHTML = svg;
+            } catch (e) {
+                console.warn('Mermaid re-render failed:', e);
+            }
+        }
     }
 
     // =========================================================================
@@ -374,6 +416,7 @@ import Fuse from 'fuse.js';
     // INITIALIZE
     // =========================================================================
     function init() {
+        initMermaidSource();
         initThemeToggle();
         initSearch();
         initCodeCopy();

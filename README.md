@@ -13,6 +13,7 @@ A Laravel package that compiles Markdown files and OpenAPI 3.x YAML specificatio
 
 - **Markdown with GFM** — Tables, task lists, strikethrough, and all GitHub Flavored Markdown extensions
 - **Server-side syntax highlighting** — 15+ languages via [Tempest Highlight](https://github.com/tempestphp/highlight), with styled code blocks, language labels, and copy-to-clipboard buttons
+- **Mermaid diagrams** — Render flowcharts, sequence diagrams, ERDs, and more using fenced `mermaid` code blocks, with automatic dark/light theme support
 - **OpenAPI 3.x API reference** — Auto-generates endpoint pages from your YAML spec with parameters, responses, and an interactive "Try it out" panel
 - **Client-side search** — Instant full-text search powered by [Fuse.js](https://www.fusejs.io/) with a keyboard-driven command palette (`Cmd+K` / `Ctrl+K`)
 - **Dark / light theme** — Class-based toggle with OS preference detection and `localStorage` persistence
@@ -275,6 +276,21 @@ Fenced code blocks are syntax-highlighted server-side. Supported languages:
 
 Code blocks render with a language label in the header and a copy-to-clipboard button.
 
+### Mermaid Diagrams
+
+Fenced code blocks with the `mermaid` language are rendered as interactive diagrams using [Mermaid JS](https://mermaid.js.org/). Flowcharts, sequence diagrams, class diagrams, ERDs, Gantt charts, and all other Mermaid diagram types are supported.
+
+````markdown
+```mermaid
+graph TD
+    A[Start] --> B{Decision}
+    B -->|Yes| C[Do something]
+    B -->|No| D[Do something else]
+```
+````
+
+Diagrams automatically adapt when the user toggles between dark and light themes. Mermaid JS is loaded from CDN -- no additional dependencies or build steps are required.
+
 ### Site Name Placeholder
 
 Use `{SiteName}` anywhere in your Markdown content and it will be replaced with the configured `site_name` value.
@@ -489,6 +505,7 @@ Results are grouped by section with icons and, for API endpoints, method badges.
 | [symfony/yaml](https://symfony.com/doc/current/components/yaml.html) | OpenAPI YAML spec parsing |
 | [tempest/highlight](https://github.com/tempestphp/highlight) | Server-side syntax highlighting for code blocks |
 | [fuse.js](https://www.fusejs.io/) | Client-side fuzzy search (bundled in pre-compiled JS) |
+| [Mermaid JS](https://mermaid.js.org/) | Client-side diagram rendering (loaded from CDN) |
 | [Tailwind CSS v4](https://tailwindcss.com/) | Utility-first styling (bundled in pre-compiled CSS) |
 
 ## Contributing
