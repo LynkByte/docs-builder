@@ -149,6 +149,17 @@ class MarkdownParser
      */
     private function postProcessCodeBlocks(string $html): string
     {
+        // Convert mermaid code blocks into client-side rendered diagrams
+        $html = preg_replace_callback(
+            '/<pre><code class="language-mermaid">(.*?)<\/code><\/pre>/s',
+            function (array $matches): string {
+                $rawCode = html_entity_decode($matches[1], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+                return '<div class="docs-mermaid-block"><pre class="mermaid">'.trim($rawCode).'</pre></div>';
+            },
+            $html
+        );
+
         // Match <pre><code class="language-X">...</code></pre> blocks (with language)
         $html = preg_replace_callback(
             '/<pre><code class="language-([^"]+)">(.*?)<\/code><\/pre>/s',
