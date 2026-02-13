@@ -155,7 +155,17 @@ class MarkdownParser
             function (array $matches): string {
                 $rawCode = html_entity_decode($matches[1], ENT_QUOTES | ENT_HTML5, 'UTF-8');
 
-                return '<div class="docs-mermaid-block"><pre class="mermaid">'.trim($rawCode).'</pre></div>';
+                return '<div class="docs-mermaid-block">'
+                    .'<div class="docs-mermaid-toolbar">'
+                    .'<button data-mermaid-zoom-in title="Zoom in"><span class="material-symbols-outlined">zoom_in</span></button>'
+                    .'<button data-mermaid-zoom-out title="Zoom out"><span class="material-symbols-outlined">zoom_out</span></button>'
+                    .'<button data-mermaid-reset title="Reset zoom"><span class="material-symbols-outlined">fit_screen</span></button>'
+                    .'<button data-mermaid-fullscreen title="Fullscreen"><span class="material-symbols-outlined">fullscreen</span></button>'
+                    .'</div>'
+                    .'<div class="docs-mermaid-content">'
+                    .'<pre class="mermaid">'.trim($rawCode).'</pre>'
+                    .'</div>'
+                    .'</div>';
             },
             $html
         );

@@ -63,7 +63,7 @@ import Fuse from 'fuse.js';
     // MERMAID DIAGRAM THEME SYNC
     // =========================================================================
     function initMermaidSource() {
-        document.querySelectorAll('.docs-mermaid-block pre.mermaid').forEach(el => {
+        document.querySelectorAll('.docs-mermaid-content pre.mermaid').forEach(el => {
             if (!el.getAttribute('data-mermaid-source')) {
                 el.setAttribute('data-mermaid-source', el.textContent);
             }
@@ -75,7 +75,7 @@ import Fuse from 'fuse.js';
             return;
         }
 
-        const blocks = document.querySelectorAll('.docs-mermaid-block pre.mermaid');
+        const blocks = document.querySelectorAll('.docs-mermaid-content pre.mermaid');
         if (!blocks.length) {
             return;
         }
@@ -98,6 +98,139 @@ import Fuse from 'fuse.js';
                 console.warn('Mermaid re-render failed:', e);
             }
         }
+    }
+
+    // =========================================================================
+    // MERMAID DIAGRAM CONTROLS (Zoom, Reset, Fullscreen)
+    // =========================================================================
+    const MERMAID_MIN_SCALE = 0.25;
+    const MERMAID_MAX_SCALE = 3;
+    const MERMAID_SCALE_STEP = 0.25;
+
+    function initMermaidControls() {
+        document.querySelectorAll('.docs-mermaid-block').forEach(block => {
+            let scale = 1;
+            const content = block.querySelector('.docs-mermaid-content');
+            if (!content) {
+                return;
+            }
+
+            function applyZoom() {
+                const pre = content.querySelector('pre.mermaid');
+                if (!pre) {
+                    return;
+                }
+                pre.style.transform = `scale(${scale})`;
+                pre.style.transformOrigin = 'center top';
+                content.classList.toggle('is-zoomed', scale !== 1);
+            }
+
+            const zoomInBtn = block.querySelector('[data-mermaid-zoom-in]');
+            const zoomOutBtn = block.querySelector('[data-mermaid-zoom-out]');
+            const resetBtn = block.querySelector('[data-mermaid-reset]');
+            const fullscreenBtn = block.querySelector('[data-mermaid-fullscreen]');
+
+            if (zoomInBtn) {
+                zoomInBtn.addEventListener('click', () => {
+                    scale = Math.min(scale + MERMAID_SCALE_STEP, MERMAID_MAX_SCALE);
+                    applyZoom();
+                });
+            }
+
+            if (zoomOutBtn) {
+                zoomOutBtn.addEventListener('click', () => {
+                    scale = Math.max(scale - MERMAID_SCALE_STEP, MERMAID_MIN_SCALE);
+                    applyZoom();
+                });
+            }
+
+            if (resetBtn) {
+                resetBtn.addEventListener('click', () => {
+                    scale = 1;
+                    applyZoom();
+                    content.scrollTop = 0;
+                    content.scrollLeft = 0;
+                });
+            }
+
+            if (fullscreenBtn) {
+                fullscreenBtn.addEventListener('click', () => {
+                    openMermaidFullscreen(block);
+                });
+            }
+        });
+    }
+
+    function openMermaidFullscreen(sourceBlock) {
+        const pre = sourceBlock.querySelector('.docs-mermaid-content pre.mermaid');
+        if (!pre) {
+            return;
+        }
+
+        let scale = 1;
+
+        // Create overlay
+        const overlay = document.createElement('div');
+        overlay.className = 'docs-mermaid-fullscreen-overlay';
+
+        // Toolbar
+        const toolbar = document.createElement('div');
+        toolbar.className = 'docs-mermaid-fullscreen-toolbar';
+        toolbar.innerHTML =
+            '<button data-fs-zoom-in title="Zoom in"><span class="material-symbols-outlined">zoom_in</span></button>' +
+            '<button data-fs-zoom-out title="Zoom out"><span class="material-symbols-outlined">zoom_out</span></button>' +
+            '<button data-fs-reset title="Reset zoom"><span class="material-symbols-outlined">fit_screen</span></button>' +
+            '<button data-fs-close title="Close"><span class="material-symbols-outlined">close</span></button>';
+
+        // Content container
+        const container = document.createElement('div');
+        container.className = 'docs-mermaid-fullscreen-content';
+        container.innerHTML = pre.innerHTML;
+
+        overlay.appendChild(toolbar);
+        overlay.appendChild(container);
+        document.body.appendChild(overlay);
+        document.body.style.overflow = 'hidden';
+
+        function applyFullscreenZoom() {
+            container.style.transform = `scale(${scale})`;
+            container.style.transformOrigin = 'center top';
+        }
+
+        toolbar.querySelector('[data-fs-zoom-in]').addEventListener('click', () => {
+            scale = Math.min(scale + MERMAID_SCALE_STEP, MERMAID_MAX_SCALE);
+            applyFullscreenZoom();
+        });
+
+        toolbar.querySelector('[data-fs-zoom-out]').addEventListener('click', () => {
+            scale = Math.max(scale - MERMAID_SCALE_STEP, MERMAID_MIN_SCALE);
+            applyFullscreenZoom();
+        });
+
+        toolbar.querySelector('[data-fs-reset]').addEventListener('click', () => {
+            scale = 1;
+            applyFullscreenZoom();
+        });
+
+        function closeFullscreen() {
+            overlay.remove();
+            document.body.style.overflow = '';
+            document.removeEventListener('keydown', escHandler);
+        }
+
+        toolbar.querySelector('[data-fs-close]').addEventListener('click', closeFullscreen);
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+                closeFullscreen();
+            }
+        });
+
+        function escHandler(e) {
+            if (e.key === 'Escape') {
+                closeFullscreen();
+            }
+        }
+        document.addEventListener('keydown', escHandler);
     }
 
     // =========================================================================
@@ -418,6 +551,7 @@ import Fuse from 'fuse.js';
     function init() {
         initMermaidSource();
         initThemeToggle();
+        initMermaidControls();
         initSearch();
         initCodeCopy();
         initTocHighlight();
