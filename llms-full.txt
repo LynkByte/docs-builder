@@ -1,0 +1,875 @@
+# lynkbyte/docs-builder — Full Reference
+
+> A Laravel package that compiles Markdown files and OpenAPI 3.x YAML specifications into a fully themed, searchable, static documentation site — with zero frontend build step required.
+
+---
+
+## Requirements
+
+- PHP 8.3 or higher
+- Laravel 11.x or 12.x
+- No Node.js required (pre-compiled assets ship with the package)
+
+## Installation
+
+```bash
+composer require lynkbyte/docs-builder
+```
+
+The package auto-discovers its service provider (`LynkByte\DocsBuilder\DocsBuilderServiceProvider`) — no manual registration needed.
+
+---
+
+## Quick Start
+
+### 1. Scaffold starter files
+
+```bash
+php artisan docs:init
+```
+
+Creates:
+- `config/docs-builder.php` — configuration file
+- `docs/README.md` — starter documentation page
+- `docs/openapi.yaml` — minimal OpenAPI spec
+
+### 2. Build the documentation
+
+```bash
+php artisan docs:build
+```
+
+### 3. View the output
+
+Open `public/docs/index.html` in a browser, or visit `/docs` if the Laravel app is running.
+
+---
+
+## Artisan Commands
+
+### `docs:init`
+
+Scaffolds a starter documentation directory with example files.
+
+```bash
+php artisan docs:init
+php artisan docs:init --force   # Overwrite existing files
+```
+
+**Options:**
+- `--force` — Overwrite existing config and stub files.
+
+**Behavior:**
+1. Publishes `config/docs-builder.php` (skips if exists, unless `--force`)
+2. Creates `docs/` directory if it doesn't exist
+3. Copies `docs/README.md` and `docs/openapi.yaml` from stubs (skips if exist, unless `--force`)
+4. Uses published stubs from `stubs/docs-builder/` if they exist, otherwise uses package defaults
+
+### `docs:build`
+
+Builds the complete static documentation site.
+
+```bash
+php artisan docs:build
+php artisan docs:build --skip-assets   # Skip asset handling, rebuild only HTML
+```
+
+**Options:**
+- `--skip-assets` — Skip copying/compiling CSS and JS assets. Useful when assets haven't changed.
+
+**Build pipeline:**
+1. Handles assets (copies pre-compiled from `dist/` or runs Vite build)
+2. Cleans the output directory (preserves `assets/` folder)
+3. Builds navigation structure with slugs and URLs from config
+4. For each page in the navigation:
+   - Parses the Markdown file via `MarkdownParser`
+   - Replaces `{SiteName}` placeholders with the configured `site_name`
+   - Determines prev/next page links
+   - Renders via Blade template (`documentation` or `api-reference` layout)
+   - Writes to `slug/index.html`
+   - Adds entry to search index
+5. Parses the OpenAPI spec via `OpenApiParser`
+6. Generates individual endpoint pages (one per `operationId`), grouped by tag
+7. Writes `search-index.json` for client-side Fuse.js search
+
+**Output structure:**
+```
+public/docs/
+├── assets/
+│   ├── docs.css
+│   └── docs.js
+├── index.html                  (from README.md)
+├── installation/
+│   └── index.html
+├── api-reference/
+│   ├── index.html              (API overview from api-reference.md)
+│   ├── registerUser/
+│   │   └── index.html
+│   ├── loginUser/
+│   │   └── index.html
+│   └── ...
+└── search-index.json
+```
+
+**Return value (from `DocsBuilder::build()`):**
+```php
+['pages' => int, 'searchEntries' => int]
+```
+
+---
+
+## Full Configuration Reference
+
+The config file is at `config/docs-builder.php`. Publish it with:
+
+```bash
+php artisan vendor:publish --tag=docs-builder-config
+```
+
+### Site Settings
+
+```php
+// Documentation site title. Used in <title>, headers, and {SiteName} replacement.
+'site_name' => 'Documentation',
+
+// Meta description for the documentation site.
+'site_description' => 'Project documentation',
+
+// Directory containing Markdown source files.
+'source_dir' => base_path('docs'),
+
+// Directory where built HTML is written.
+'output_dir' => public_path('docs'),
+
+// Path to the OpenAPI YAML spec for API reference generation.
+'openapi_file' => base_path('docs/openapi.yaml'),
+
+// URL path prefix for all generated links.
+'base_url' => '/docs',
+```
+
+### Logo
+
+```php
+// null = default diamond SVG icon
+'logo' => null,
+
+// Inline SVG or HTML string
+'logo' => '<svg viewBox="0 0 24 24" ...>...</svg>',
+
+// Image URL
+'logo' => '<img src="/images/logo.svg" alt="Logo" class="h-8">',
+```
+
+### Header Navigation
+
+```php
+// null = defaults (Guides, API Reference, Examples)
+'header_nav' => null,
+
+// Custom links — each entry needs 'title' and 'url'
+'header_nav' => [
+    ['title' => 'Guides', 'url' => '/docs'],
+    ['title' => 'API', 'url' => '/docs/api-reference'],
+    ['title' => 'Blog', 'url' => '/blog'],
+],
+```
+
+### Fonts
+
+```php
+// Default: Inter (body) + JetBrains Mono (code) + Material Symbols (icons)
+'fonts' => [
+    'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=JetBrains+Mono:wght@400;500;600&display=swap',
+    'https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap',
+],
+
+// Disable external fonts entirely (icons will not render without Material Symbols)
+'fonts' => false,
+```
+
+### Asset Mode
+
+```php
+// Pre-compiled (default) — uses pre-built CSS/JS from the package's dist/ directory.
+// No Node.js required.
+'asset_mode' => 'precompiled',
+
+// Vite — integrates with the host app's Vite build pipeline.
+// Requires docs CSS/JS as Vite entry points.
+'asset_mode' => 'vite',
+```
+
+**Using Vite mode:**
+
+Add the package's assets as entry points in your `vite.config.js`:
+
+```js
+// vite.config.js
+laravel({
+    input: [
+        'resources/css/app.css',
+        'resources/js/app.js',
+        'vendor/lynkbyte/docs-builder/resources/css/docs.css',
+        'vendor/lynkbyte/docs-builder/resources/js/docs.js',
+    ],
+}),
+```
+
+If you've published the CSS or JS source files, Vite mode auto-detects published files at `resources/css/docs.css` and `resources/js/docs.js` first, falling back to the vendor path.
+
+### Theme Overrides
+
+Override default CSS custom properties by setting key-value pairs. These are injected as an inline `<style>` block on `:root`.
+
+```php
+'theme' => [
+    'color-primary'       => '#8b5cf6',
+    'color-primary-light' => '#a78bfa',
+    'color-primary-dark'  => '#7c3aed',
+    'color-dark-bg'       => '#0a0a0a',
+    'color-light-bg'      => '#fafafa',
+],
+```
+
+**All 18 available theme variables:**
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `color-primary` | `#137fec` | Primary brand color (links, active states) |
+| `color-primary-light` | `#3b9af5` | Lighter primary variant (hover states) |
+| `color-primary-dark` | `#0d6ad4` | Darker primary variant |
+| `color-dark-bg` | `#101922` | Dark mode background |
+| `color-dark-surface` | `#1a2632` | Dark mode surface (cards, sidebar) |
+| `color-dark-border` | `#233648` | Dark mode borders |
+| `color-dark-muted` | `#92adc9` | Dark mode muted text |
+| `color-dark-text` | `#e2e8f0` | Dark mode primary text |
+| `color-dark-text-secondary` | `#cbd5e1` | Dark mode secondary text |
+| `color-light-bg` | `#f6f7f8` | Light mode background |
+| `color-light-surface` | `#ffffff` | Light mode surface |
+| `color-light-border` | `#e2e8f0` | Light mode borders |
+| `color-light-muted` | `#94a3b8` | Light mode muted text |
+| `color-light-text` | `#0f172a` | Light mode primary text |
+| `color-light-text-secondary` | `#475569` | Light mode secondary text |
+| `color-code-bg` | `#0d1117` | Code block background |
+| `color-code-header` | `#1a2632` | Code block header background |
+| `color-code-border` | `#233648` | Code block border |
+| `color-code-text` | `#f1f5f9` | Code block text |
+
+### Navigation
+
+The sidebar navigation is defined as an array of sections. Each section has a `title` and an array of `pages`.
+
+```php
+'navigation' => [
+    [
+        'title' => 'Getting Started',
+        'pages' => [
+            ['title' => 'Home', 'file' => 'README.md', 'icon' => 'home'],
+            ['title' => 'Installation', 'file' => 'installation.md', 'icon' => 'download'],
+            ['title' => 'Configuration', 'file' => 'configuration.md', 'icon' => 'settings'],
+        ],
+    ],
+    [
+        'title' => 'Guides',
+        'pages' => [
+            ['title' => 'Writing Docs', 'file' => 'writing-docs.md', 'icon' => 'edit_note'],
+            ['title' => 'Customization', 'file' => 'customization.md', 'icon' => 'palette'],
+        ],
+    ],
+    [
+        'title' => 'API',
+        'pages' => [
+            ['title' => 'API Reference', 'file' => 'api-reference.md', 'icon' => 'api', 'layout' => 'api-reference'],
+        ],
+    ],
+],
+```
+
+**Page entry keys:**
+
+| Key | Required | Type | Description |
+|-----|----------|------|-------------|
+| `title` | Yes | string | Display title in sidebar and page heading |
+| `file` | Yes | string | Markdown filename relative to `source_dir` |
+| `icon` | No | string | Material Symbols icon name (see fonts.google.com/icons) |
+| `layout` | No | string | `'documentation'` (default) or `'api-reference'` |
+
+- `README.md` is automatically slugified to `index` (produces `index.html` at the root).
+- Other files produce `slug/index.html` (e.g., `installation.md` becomes `installation/index.html`).
+- Pages using `'layout' => 'api-reference'` render with the API sidebar (tags, endpoints) instead of the standard sidebar.
+
+### API Settings
+
+```php
+// Map OpenAPI tags to Material Symbols icon names for sidebar display.
+// Any tag not in this map falls back to 'api'.
+'api_tag_icons' => [
+    'Authentication' => 'lock',
+    'User'           => 'person',
+    'Users'          => 'group',
+    'Booking'        => 'calendar_month',
+    'Bookings'       => 'calendar_month',
+    'Portfolio'      => 'photo_library',
+    'Admin'          => 'admin_panel_settings',
+    'General'        => 'api',
+],
+
+// API sidebar navigation. Auto-generated from openapi.yaml tags if empty.
+'api_navigation' => [],
+```
+
+### Footer
+
+```php
+'footer' => [
+    'copyright' => '© ' . date('Y') . ' My Company. All rights reserved.',
+    'links' => [
+        ['title' => 'Privacy Policy', 'url' => '/privacy'],
+        ['title' => 'Terms', 'url' => '/terms'],
+        ['title' => 'GitHub', 'url' => 'https://github.com/my-org'],
+    ],
+],
+```
+
+---
+
+## Core Classes
+
+### `LynkByte\DocsBuilder\DocsBuilder`
+
+**Location:** `src/DocsBuilder.php`
+
+The main orchestrator that coordinates the entire build process. Instantiated by `BuildDocsCommand`.
+
+**Constructor:** Reads config from `config('docs-builder')`, initializes `MarkdownParser`, `OpenApiParser`, and `SearchIndexBuilder`.
+
+**Public methods:**
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `build()` | `array{pages: int, searchEntries: int}` | Runs the complete build pipeline: clean output, build navigation, render all pages, build API reference, write search index. |
+
+**Private methods (build pipeline):**
+
+| Method | Description |
+|--------|-------------|
+| `cleanOutput()` | Removes everything in `output_dir` except the `assets/` folder |
+| `buildNavigation()` | Converts config navigation into enriched arrays with slugs and URLs |
+| `buildFlatPageList($navigation)` | Flattens all pages into a single list for prev/next navigation |
+| `resolveSharedViewData()` | Returns logo, headerNav, fonts, and themeOverrides common to all views |
+| `buildPage($page, $sectionTitle, $navigation)` | Parses Markdown, renders via Blade, writes HTML, adds to search index |
+| `buildApiReferencePage($page, $parsed, $navigation, $breadcrumbs)` | Renders the API overview page using the `api-reference` layout |
+| `buildApiReference($navigation)` | Parses OpenAPI spec and generates individual endpoint pages |
+| `getPrevNextPages($currentSlug)` | Returns `[prevPage, nextPage]` for a given slug |
+| `writePage($slug, $html)` | Writes rendered HTML to `slug/index.html` |
+| `fileToSlug($file)` | Converts `README.md` to `index`, strips `.md` from others |
+| `slugToUrl($slug)` | Converts a slug to a full URL with `base_url` prefix |
+
+### `LynkByte\DocsBuilder\MarkdownParser`
+
+**Location:** `src/MarkdownParser.php`
+
+Converts Markdown to HTML with rich processing: CommonMark + GFM extensions, heading permalinks, server-side syntax highlighting, and Mermaid diagram support.
+
+**Public methods:**
+
+| Method | Parameters | Returns | Description |
+|--------|-----------|---------|-------------|
+| `parse($filePath)` | `string $filePath` | `array{html, headings, description, plainText}` | Parse a Markdown file from disk |
+| `parseString($markdown)` | `string $markdown` | `array{html, headings, description, plainText}` | Parse a raw Markdown string |
+
+**Return array structure:**
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `html` | `string` | Rendered HTML with syntax highlighting and Mermaid blocks |
+| `headings` | `array<{id, text, level}>` | Extracted h2-h4 headings for the table of contents |
+| `description` | `string` | First paragraph text, truncated to ~200 chars |
+| `plainText` | `string` | Stripped plain text for search indexing, max ~1000 chars |
+
+**Markdown features:**
+- GitHub Flavored Markdown (tables, task lists, strikethrough)
+- Heading permalinks (auto-generated IDs, `#` anchor links, h1-h4)
+- YAML front matter stripping (`---` delimited)
+- `{SiteName}` placeholder (replaced by `DocsBuilder`, not by the parser)
+
+**Syntax highlighting:**
+
+Server-side via Tempest Highlight. Supported language aliases:
+
+| Aliases | Language |
+|---------|----------|
+| `php` | PHP |
+| `blade` | Blade |
+| `html` | HTML |
+| `css` | CSS |
+| `javascript`, `js` | JavaScript |
+| `typescript`, `ts` | TypeScript |
+| `json` | JSON |
+| `bash`, `shell`, `sh` | Bash |
+| `sql` | SQL |
+| `yaml`, `yml` | YAML |
+| `xml` | XML |
+
+Code blocks render with:
+- A header bar showing the language label
+- A copy-to-clipboard button
+- Syntax-highlighted code with Tempest Highlight classes
+
+**Mermaid diagrams:**
+
+Fenced code blocks with language `mermaid` are converted into interactive diagram containers with zoom in/out, reset, and fullscreen toolbar buttons. Mermaid JS is loaded from CDN at runtime.
+
+### `LynkByte\DocsBuilder\OpenApiParser`
+
+**Location:** `src/OpenApiParser.php`
+
+Parses OpenAPI 3.x YAML specification files.
+
+**Public methods:**
+
+| Method | Parameters | Returns | Description |
+|--------|-----------|---------|-------------|
+| `parse($filePath)` | `string $filePath` | `array{info, endpoints, tagIcons, serverUrl}` | Parse an OpenAPI YAML file |
+
+**Return array structure:**
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `info` | `array{title, description, version}` | API info from the spec |
+| `endpoints` | `array<tag, array<endpoint>>` | Endpoints grouped by tag |
+| `tagIcons` | `array<tag, icon>` | Tag-to-Material Symbols icon mapping |
+| `serverUrl` | `string` | Primary server URL (fallback: `http://localhost:8000/api/v1`) |
+
+**Endpoint structure:**
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `path` | `string` | API path (e.g., `/api/v1/users`) |
+| `method` | `string` | HTTP method (uppercase: `GET`, `POST`, etc.) |
+| `operationId` | `string` | Unique operation identifier (used for URL slugs) |
+| `summary` | `string` | Short summary |
+| `description` | `string` | Detailed description |
+| `parameters` | `array` | Path, query, and body parameters |
+| `responses` | `array` | Response definitions with status codes |
+| `security` | `array` | Security scheme names |
+
+**Parameter structure:**
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `name` | `string` | Parameter name |
+| `in` | `string` | Location: `path`, `query`, or `body` |
+| `type` | `string` | Data type (e.g., `string`, `integer`) |
+| `required` | `bool` | Whether the parameter is required |
+| `description` | `string` | Parameter description |
+| `example` | `string` | Example value |
+
+**Features:**
+- Resolves `$ref` references to `#/components/schemas/...`
+- Extracts request body properties from `application/json` content
+- Groups endpoints by OpenAPI tags (untagged operations go to "General")
+- Generates fallback `operationId` from path and method if not specified
+
+### `LynkByte\DocsBuilder\SearchIndexBuilder`
+
+**Location:** `src/SearchIndexBuilder.php`
+
+Builds the `search-index.json` file consumed by the client-side Fuse.js search.
+
+**Public methods:**
+
+| Method | Parameters | Returns | Description |
+|--------|-----------|---------|-------------|
+| `addPage(...)` | title, url, section, headings, plainText, description, icon | `void` | Add a documentation page entry |
+| `addEndpoint(...)` | title, url, method, path, description, tag | `void` | Add an API endpoint entry |
+| `toJson()` | — | `string` | Serialize entries to JSON |
+| `writeTo($filePath)` | `string $filePath` | `void` | Write JSON to a file (creates directory if needed) |
+| `count()` | — | `int` | Number of entries in the index |
+
+**Search entry structure (documentation page):**
+
+```json
+{
+    "title": "Installation",
+    "url": "/docs/installation/index.html",
+    "section": "Getting Started",
+    "headings": "Requirements, Installing, Configuration",
+    "content": "Plain text content...",
+    "description": "First paragraph...",
+    "type": "doc",
+    "icon": "download"
+}
+```
+
+**Search entry structure (API endpoint):**
+
+```json
+{
+    "title": "Register User",
+    "url": "/docs/api-reference/registerUser/index.html",
+    "section": "API Reference",
+    "headings": "POST /api/v1/register",
+    "content": "Creates a new user account...",
+    "description": "POST /api/v1/register",
+    "type": "api-endpoint",
+    "icon": "api",
+    "method": "POST"
+}
+```
+
+### `LynkByte\DocsBuilder\DocsBuilderServiceProvider`
+
+**Location:** `src/DocsBuilderServiceProvider.php`
+
+Auto-discovered Laravel service provider.
+
+**`register()`:**
+- Merges default config from `config/docs-builder.php`
+
+**`boot()`:**
+- Loads Blade views from `resources/views` under the `docs-builder` namespace
+- Registers `docs:init` and `docs:build` commands (console only)
+- Defines six publishable asset groups (see Publishing section)
+
+---
+
+## Blade Template Structure
+
+All views are under the `docs-builder::docs` namespace.
+
+```
+resources/views/docs/
+├── layouts/
+│   ├── base.blade.php              # Root HTML document (<html>, <head>, scripts, styles)
+│   ├── documentation.blade.php     # Standard doc page (sidebar + content + TOC)
+│   └── api-reference.blade.php     # API reference page (API sidebar + endpoint details)
+└── partials/
+    ├── header.blade.php            # Top navigation bar (logo, nav links, search trigger, theme toggle)
+    ├── sidebar.blade.php           # Left sidebar navigation (sections + pages)
+    ├── toc.blade.php               # Right-side table of contents (from h2-h4 headings)
+    ├── search-modal.blade.php      # Search command palette overlay (Cmd+K / Ctrl+K)
+    └── footer.blade.php            # Site footer (copyright + links)
+```
+
+**View data passed to documentation layout:**
+
+| Variable | Type | Description |
+|----------|------|-------------|
+| `$baseUrl` | `string` | URL prefix (e.g., `/docs`) |
+| `$siteName` | `string` | Site name from config |
+| `$siteDescription` | `string` | Site description from config |
+| `$pageTitle` | `string` | Current page title |
+| `$pageDescription` | `string` | Extracted first paragraph |
+| `$content` | `string` | Rendered HTML content |
+| `$navigation` | `array` | Full navigation structure with slugs/URLs |
+| `$currentPage` | `string` | Current page slug |
+| `$tableOfContents` | `array` | Headings for the TOC sidebar |
+| `$breadcrumbs` | `array` | Breadcrumb trail |
+| `$prevPage` | `array\|null` | Previous page link (title + URL) |
+| `$nextPage` | `array\|null` | Next page link (title + URL) |
+| `$footer` | `array` | Footer config (copyright + links) |
+| `$logo` | `string\|null` | Logo HTML/SVG or null |
+| `$headerNav` | `array\|null` | Header nav links or null |
+| `$fonts` | `array\|false` | Google Fonts URLs or false |
+| `$themeOverrides` | `array` | CSS custom property overrides |
+
+**Additional variables for api-reference layout:**
+
+| Variable | Type | Description |
+|----------|------|-------------|
+| `$apiEndpoints` | `array` | Endpoints grouped by tag with URLs |
+| `$tagIcons` | `array` | Tag-to-icon mapping |
+| `$apiVersion` | `string` | API version string |
+| `$endpointMethod` | `string\|null` | HTTP method (null for overview page) |
+| `$endpointPath` | `string\|null` | Endpoint path (null for overview page) |
+| `$parameters` | `array` | Endpoint parameters |
+| `$responses` | `array` | Endpoint responses |
+| `$currentEndpoint` | `string\|null` | Current endpoint operationId |
+
+---
+
+## Publishing
+
+Six publishable groups for granular customization:
+
+```bash
+# Configuration file
+php artisan vendor:publish --tag=docs-builder-config
+# -> config/docs-builder.php
+
+# All Blade templates
+php artisan vendor:publish --tag=docs-builder-views
+# -> resources/views/vendor/docs-builder/
+
+# Pre-compiled CSS/JS assets
+php artisan vendor:publish --tag=docs-builder-assets
+# -> public/docs/assets/
+
+# CSS source file (for Vite customization)
+php artisan vendor:publish --tag=docs-builder-css
+# -> resources/css/docs.css
+
+# JavaScript source file (for Vite customization)
+php artisan vendor:publish --tag=docs-builder-js
+# -> resources/js/docs.js
+
+# Init scaffold templates
+php artisan vendor:publish --tag=docs-builder-stubs
+# -> stubs/docs-builder/
+```
+
+### Customizing Templates
+
+Published views are placed in `resources/views/vendor/docs-builder/` and take priority over the package views.
+
+### Customizing Styles
+
+For changes beyond theme overrides:
+
+1. Publish CSS source: `php artisan vendor:publish --tag=docs-builder-css`
+2. Add it as a Vite entry point in your `vite.config.js`
+3. Set `'asset_mode' => 'vite'` in config
+
+The published `resources/css/docs.css` is a Tailwind CSS v4 file with `@theme`, all custom styles, and syntax highlighting classes.
+
+### Customizing JavaScript
+
+Publish the JS source to modify search behavior, theme toggling, keyboard shortcuts, or add custom functionality:
+
+```bash
+php artisan vendor:publish --tag=docs-builder-js
+```
+
+Auto-detected in Vite mode when at `resources/js/docs.js`.
+
+### Customizing Init Stubs
+
+Publish the stubs to customize what `docs:init` scaffolds:
+
+```bash
+php artisan vendor:publish --tag=docs-builder-stubs
+```
+
+Published stubs at `stubs/docs-builder/` take priority over package defaults.
+
+---
+
+## Writing Documentation
+
+### Markdown Files
+
+Place Markdown files in the `source_dir` directory (`docs/` by default). All standard Markdown plus GitHub Flavored Markdown is supported:
+
+| Feature | Syntax |
+|---------|--------|
+| Tables | `\| Header \| Header \|` |
+| Task lists | `- [x] Done` / `- [ ] Todo` |
+| Strikethrough | `~~text~~` |
+| Fenced code blocks | `` ```php `` |
+| Heading anchors | Auto-generated from heading text |
+
+### YAML Front Matter
+
+Optional front matter is stripped during parsing:
+
+```markdown
+---
+title: Installation Guide
+---
+
+# Installation
+
+Your content here...
+```
+
+Note: Front matter is stripped but not used for page metadata. Page titles come from the `navigation` config.
+
+### Syntax Highlighting
+
+Use fenced code blocks with a language identifier:
+
+````markdown
+```php
+$user = User::find(1);
+echo $user->name;
+```
+````
+
+Supported languages: `php`, `blade`, `html`, `css`, `javascript`/`js`, `typescript`/`ts`, `json`, `bash`/`shell`/`sh`, `sql`, `yaml`/`yml`, `xml`.
+
+Code blocks render with a language label header and a copy-to-clipboard button.
+
+### Mermaid Diagrams
+
+Use fenced code blocks with language `mermaid`:
+
+````markdown
+```mermaid
+graph TD
+    A[Start] --> B{Decision}
+    B -->|Yes| C[Do something]
+    B -->|No| D[Do something else]
+```
+````
+
+Diagrams auto-adapt to dark/light theme. Mermaid JS loads from CDN. All diagram types are supported: flowcharts, sequence diagrams, class diagrams, ERDs, Gantt charts, etc.
+
+The rendered diagram includes a toolbar with zoom in, zoom out, reset, and fullscreen controls.
+
+### Site Name Placeholder
+
+Use `{SiteName}` in Markdown content. It is replaced with the configured `site_name` value during the build.
+
+---
+
+## API Reference Generation
+
+### Setup
+
+1. Set `openapi_file` in config to point at your OpenAPI 3.x YAML spec
+2. Add a page with `'layout' => 'api-reference'` to your `navigation` config
+3. Run `php artisan docs:build`
+
+### What Gets Generated
+
+The builder parses the spec and creates one HTML page per `operationId`, grouped by tag. Each endpoint page includes:
+
+- **Method badge** — Color-coded: `GET` (blue), `POST` (green), `PUT`/`PATCH` (amber), `DELETE` (red)
+- **Full endpoint path** with the server base URL
+- **Parameters table** — Path, query, and request body parameters with types, required flags, descriptions
+- **Responses section** — Status codes with descriptions and JSON examples
+- **"Try it out" panel** — Interactive form to send live requests with generated cURL command and response viewer
+
+### Tag Icons
+
+Map OpenAPI tags to Material Symbols icon names:
+
+```php
+'api_tag_icons' => [
+    'Authentication' => 'lock',
+    'Users'          => 'group',
+    'Payments'       => 'payments',
+],
+```
+
+Unmapped tags fall back to the `api` icon.
+
+### OpenAPI Features Supported
+
+- `$ref` resolution for schemas under `#/components/schemas/`
+- Path parameters, query parameters, and request body (JSON)
+- Response definitions with JSON examples
+- Security requirements per operation
+- Server URL extraction (first server entry)
+- Tag-based grouping with icon mapping
+- Auto-generated `operationId` fallback from path and method
+
+---
+
+## Client-Side Search
+
+The builder generates `search-index.json` in the output directory. Search is powered by Fuse.js.
+
+**Keyboard shortcut:** `Cmd+K` (macOS) / `Ctrl+K` (Windows/Linux) opens the search command palette.
+
+**Search behavior:**
+- Index is lazy-loaded on first use
+- Weighted fields: page titles (highest), section headings (high), content (medium), section names (lower)
+- Results grouped by section with icons
+- API endpoints show method badges in results
+
+---
+
+## Asset Modes
+
+### Precompiled (Default)
+
+```php
+'asset_mode' => 'precompiled',
+```
+
+Uses pre-built `docs.css` and `docs.js` from the package's `dist/` directory. Build command copies them to `output_dir/assets/`.
+
+- No Node.js required
+- Instant builds
+- Zero configuration
+
+### Vite
+
+```php
+'asset_mode' => 'vite',
+```
+
+Integrates with the host app's Vite pipeline. Build command runs `npx vite build` and reads the manifest to locate compiled assets.
+
+```js
+// vite.config.js
+laravel({
+    input: [
+        'resources/css/app.css',
+        'resources/js/app.js',
+        'vendor/lynkbyte/docs-builder/resources/css/docs.css',
+        'vendor/lynkbyte/docs-builder/resources/js/docs.js',
+    ],
+}),
+```
+
+The Vite asset resolver checks for published source files first (`resources/css/docs.css`, `resources/js/docs.js`), then falls back to the vendor path.
+
+---
+
+## Dependencies
+
+| Package | Purpose |
+|---------|---------|
+| league/commonmark ^2.7 | Markdown to HTML with GFM extensions |
+| symfony/yaml ^6.4\|^7.0\|^8.0 | OpenAPI YAML spec parsing |
+| tempest/highlight ^2.0 | Server-side syntax highlighting |
+| fuse.js ^7.1 | Client-side fuzzy search (bundled in pre-compiled JS) |
+| Mermaid JS | Diagram rendering (loaded from CDN) |
+| Tailwind CSS v4 | Styling (bundled in pre-compiled CSS) |
+
+---
+
+## Directory Structure
+
+```
+docs-builder/
+├── config/
+│   └── docs-builder.php            # Default configuration
+├── dist/
+│   ├── docs-css.css                # Pre-compiled Tailwind CSS v4
+│   └── docs.js                     # Pre-compiled JS (Fuse.js bundled)
+├── resources/
+│   ├── css/docs.css                # Tailwind CSS v4 source
+│   ├── js/docs.js                  # Client-side JS source
+│   └── views/docs/                 # Blade templates
+│       ├── layouts/                # Page layouts (base, documentation, api-reference)
+│       └── partials/               # Reusable partials (header, sidebar, toc, search, footer)
+├── src/
+│   ├── Commands/
+│   │   ├── BuildDocsCommand.php    # docs:build Artisan command
+│   │   └── InitDocsCommand.php     # docs:init Artisan command
+│   ├── DocsBuilder.php             # Core build orchestrator
+│   ├── DocsBuilderServiceProvider.php  # Laravel service provider
+│   ├── MarkdownParser.php          # Markdown-to-HTML with syntax highlighting
+│   ├── OpenApiParser.php           # OpenAPI YAML parser
+│   └── SearchIndexBuilder.php      # Search index JSON generator
+├── stubs/
+│   ├── README.md                   # Scaffold template for docs:init
+│   └── openapi.yaml                # Scaffold template for docs:init
+├── tests/
+│   └── Feature/                    # Pest test suite
+├── composer.json
+├── package.json                    # Internal build script (not for consumers)
+├── vite.config.js                  # Internal asset compilation
+└── README.md
+```
+
+---
+
+## License
+
+MIT License. Copyright 2026 LynkByte.
