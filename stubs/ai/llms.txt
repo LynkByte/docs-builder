@@ -40,7 +40,7 @@ View the output at `public/docs/index.html` or `/docs` in your running app.
 
 ## Artisan Commands
 
-- `docs:init` — Scaffolds config, `docs/README.md`, and `docs/openapi.yaml`. Optionally includes AI tool configurations (llms.txt, Cursor rules, Copilot instructions, Claude instructions) via interactive prompt or `--with-ai` flag. Options: `--force`, `--with-ai=<tool>`
+- `docs:init` — Scaffolds config, `docs/README.md`, and `docs/openapi.yaml`. Options: `--force`
 - `docs:build` — Builds the static site from Markdown and OpenAPI sources. Options: `--skip-assets`
 
 ## Core Architecture
@@ -49,7 +49,7 @@ View the output at `public/docs/index.html` or `/docs` in your running app.
 - `MarkdownParser` — Converts Markdown to HTML using CommonMark + GFM + HeadingPermalink. Applies server-side syntax highlighting via Tempest Highlight. Processes Mermaid code blocks. Extracts headings, description, and plain text for search.
 - `OpenApiParser` — Parses OpenAPI 3.x YAML files using Symfony/Yaml. Extracts info, endpoints (grouped by tag), parameters, responses, security, and tag icons. Resolves `$ref` references.
 - `SearchIndexBuilder` — Accumulates page and endpoint entries. Generates `search-index.json` for client-side Fuse.js search.
-- `DocsBuilderServiceProvider` — Auto-discovered Laravel service provider. Registers config, views, commands, and seven publishable asset groups.
+- `DocsBuilderServiceProvider` — Auto-discovered Laravel service provider. Registers config, views, commands, and six publishable asset groups.
 
 ## Configuration
 
@@ -73,7 +73,7 @@ The config file is at `config/docs-builder.php`. Key settings:
 
 ## Publishing
 
-Seven publishable groups for granular customization:
+Six publishable groups for granular customization:
 
 - `docs-builder-config` — Config file to `config/docs-builder.php`
 - `docs-builder-views` — Blade templates to `resources/views/vendor/docs-builder/`
@@ -81,7 +81,6 @@ Seven publishable groups for granular customization:
 - `docs-builder-css` — CSS source to `resources/css/docs.css`
 - `docs-builder-js` — JS source to `resources/js/docs.js`
 - `docs-builder-stubs` — Init scaffold templates to `stubs/docs-builder/`
-- `docs-builder-llms` — LLM documentation files (`llms.txt`, `llms-full.txt`) to project root
 
 ## Detailed Documentation
 

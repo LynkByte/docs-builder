@@ -46,6 +46,11 @@ class DocsBuilderServiceProvider extends ServiceProvider
             $this->publishes([
                 __DIR__.'/../stubs' => base_path('stubs/docs-builder'),
             ], 'docs-builder-stubs');
+
+            $this->publishes([
+                __DIR__.'/../llms.txt' => base_path('llms.txt'),
+                __DIR__.'/../llms-full.txt' => base_path('llms-full.txt'),
+            ], 'docs-builder-llms');
         }
     }
 }

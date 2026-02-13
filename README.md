@@ -400,15 +400,29 @@ php artisan docs:init
 | Option | Description |
 |--------|-------------|
 | `--force` | Overwrite existing config and stub files if they already exist. |
+| `--with-ai=<tool>` | Include AI tool configurations without the interactive prompt. Repeatable. Valid values: `llms`, `cursor`, `copilot`, `claude`. |
 
 ```bash
 # Overwrite existing files
 php artisan docs:init --force
+
+# Include specific AI tool configs (non-interactive)
+php artisan docs:init --with-ai=llms --with-ai=cursor
+
+# Include all AI tool configs
+php artisan docs:init --with-ai=llms --with-ai=cursor --with-ai=copilot --with-ai=claude
 ```
+
+When run interactively (without `--with-ai`), the command presents a multi-select prompt to choose which AI tool configurations to include:
+
+- **llms.txt** — LLM-friendly documentation files (`llms.txt`, `llms-full.txt`)
+- **Cursor** — AI coding rules (`.cursor/rules/docs-builder.mdc`)
+- **GitHub Copilot** — Copilot instructions (`.github/copilot-instructions.md`)
+- **Claude** — Claude code instructions (`CLAUDE.md`)
 
 ## Publishing
 
-The package offers six publishable groups so you can customize any part of the documentation:
+The package offers seven publishable groups so you can customize any part of the documentation:
 
 | Tag | What's Published | Destination |
 |-----|-----------------|-------------|
@@ -418,6 +432,7 @@ The package offers six publishable groups so you can customize any part of the d
 | `docs-builder-css` | CSS source file | `resources/css/docs.css` |
 | `docs-builder-js` | JavaScript source file | `resources/js/docs.js` |
 | `docs-builder-stubs` | Init scaffold templates | `stubs/docs-builder/` |
+| `docs-builder-llms` | LLM documentation files | `llms.txt`, `llms-full.txt` |
 
 ```bash
 # Publish individual groups
@@ -427,6 +442,7 @@ php artisan vendor:publish --tag=docs-builder-assets
 php artisan vendor:publish --tag=docs-builder-css
 php artisan vendor:publish --tag=docs-builder-js
 php artisan vendor:publish --tag=docs-builder-stubs
+php artisan vendor:publish --tag=docs-builder-llms
 ```
 
 ### Customizing Templates
@@ -517,6 +533,12 @@ This repository includes machine-readable documentation for LLMs and AI coding a
 | [`llms.txt`](llms.txt) | Concise package overview following the [llms.txt standard](https://llmstxt.org/) |
 | [`llms-full.txt`](llms-full.txt) | Comprehensive reference with full configuration, class API, and examples |
 | [`.cursor/rules/docs-builder.mdc`](.cursor/rules/docs-builder.mdc) | AI coding rules for [Cursor](https://cursor.com/) and compatible assistants |
+
+Run `php artisan docs:init` and select the AI tools you use, or use `--with-ai` to include them non-interactively. You can also publish the LLM files separately:
+
+```bash
+php artisan vendor:publish --tag=docs-builder-llms
+```
 
 ## Contributing
 

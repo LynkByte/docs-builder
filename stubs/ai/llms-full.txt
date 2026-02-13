@@ -54,28 +54,16 @@ Scaffolds a starter documentation directory with example files.
 ```bash
 php artisan docs:init
 php artisan docs:init --force   # Overwrite existing files
-php artisan docs:init --with-ai=llms --with-ai=cursor   # Include specific AI tool configs
 ```
 
 **Options:**
 - `--force` — Overwrite existing config and stub files.
-- `--with-ai=<tool>` — Include AI tool configurations without the interactive prompt. Repeatable. Valid values: `llms`, `cursor`, `copilot`, `claude`.
 
 **Behavior:**
 1. Publishes `config/docs-builder.php` (skips if exists, unless `--force`)
 2. Creates `docs/` directory if it doesn't exist
 3. Copies `docs/README.md` and `docs/openapi.yaml` from stubs (skips if exist, unless `--force`)
 4. Uses published stubs from `stubs/docs-builder/` if they exist, otherwise uses package defaults
-5. Prompts for AI tool configurations (interactive) or uses `--with-ai` flags (non-interactive)
-
-**AI tool configurations:**
-
-| Key | Files Created | Destination |
-|-----|--------------|-------------|
-| `llms` | `llms.txt`, `llms-full.txt` | Project root |
-| `cursor` | `docs-builder.mdc` | `.cursor/rules/` |
-| `copilot` | `copilot-instructions.md` | `.github/` |
-| `claude` | `CLAUDE.md` | Project root |
 
 ### `docs:build`
 
@@ -543,7 +531,7 @@ Auto-discovered Laravel service provider.
 **`boot()`:**
 - Loads Blade views from `resources/views` under the `docs-builder` namespace
 - Registers `docs:init` and `docs:build` commands (console only)
-- Defines seven publishable asset groups (see Publishing section)
+- Defines six publishable asset groups (see Publishing section)
 
 ---
 
@@ -604,7 +592,7 @@ resources/views/docs/
 
 ## Publishing
 
-Seven publishable groups for granular customization:
+Six publishable groups for granular customization:
 
 ```bash
 # Configuration file
@@ -630,10 +618,6 @@ php artisan vendor:publish --tag=docs-builder-js
 # Init scaffold templates
 php artisan vendor:publish --tag=docs-builder-stubs
 # -> stubs/docs-builder/
-
-# LLM documentation files
-php artisan vendor:publish --tag=docs-builder-llms
-# -> llms.txt, llms-full.txt (project root)
 ```
 
 ### Customizing Templates
@@ -874,12 +858,6 @@ docs-builder/
 │   ├── OpenApiParser.php           # OpenAPI YAML parser
 │   └── SearchIndexBuilder.php      # Search index JSON generator
 ├── stubs/
-│   ├── ai/                         # AI tool configuration stubs
-│   │   ├── llms.txt                # LLM-friendly overview
-│   │   ├── llms-full.txt           # Comprehensive LLM reference
-│   │   ├── cursor-rules.mdc       # Cursor AI coding rules
-│   │   ├── copilot-instructions.md # GitHub Copilot instructions
-│   │   └── CLAUDE.md              # Claude code instructions
 │   ├── README.md                   # Scaffold template for docs:init
 │   └── openapi.yaml                # Scaffold template for docs:init
 ├── tests/
