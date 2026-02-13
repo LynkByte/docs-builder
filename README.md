@@ -508,6 +508,16 @@ Results are grouped by section with icons and, for API endpoints, method badges.
 | [Mermaid JS](https://mermaid.js.org/) | Client-side diagram rendering (loaded from CDN) |
 | [Tailwind CSS v4](https://tailwindcss.com/) | Utility-first styling (bundled in pre-compiled CSS) |
 
+## LLM Documentation
+
+This repository includes machine-readable documentation for LLMs and AI coding assistants:
+
+| File | Purpose |
+|------|---------|
+| [`llms.txt`](llms.txt) | Concise package overview following the [llms.txt standard](https://llmstxt.org/) |
+| [`llms-full.txt`](llms-full.txt) | Comprehensive reference with full configuration, class API, and examples |
+| [`.cursor/rules/docs-builder.mdc`](.cursor/rules/docs-builder.mdc) | AI coding rules for [Cursor](https://cursor.com/) and compatible assistants |
+
 ## Contributing
 
 Contributions are welcome. Here's how to get started:
