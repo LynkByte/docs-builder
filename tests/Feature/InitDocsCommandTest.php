@@ -14,6 +14,27 @@ beforeEach(function () {
     if (file_exists($this->configPath)) {
         File::delete($this->configPath);
     }
+
+    // Clean up AI tool files
+    $this->aiFiles = [
+        base_path('llms.txt'),
+        base_path('llms-full.txt'),
+        base_path('.cursor/rules/docs-builder.mdc'),
+        base_path('.github/copilot-instructions.md'),
+        base_path('CLAUDE.md'),
+    ];
+
+    $this->aiDirs = [
+        base_path('.cursor/rules'),
+        base_path('.cursor'),
+        base_path('.github'),
+    ];
+
+    foreach ($this->aiFiles as $file) {
+        if (file_exists($file)) {
+            File::delete($file);
+        }
+    }
 });
 
 afterEach(function () {
@@ -23,6 +44,18 @@ afterEach(function () {
 
     if (file_exists($this->configPath)) {
         File::delete($this->configPath);
+    }
+
+    foreach ($this->aiFiles as $file) {
+        if (file_exists($file)) {
+            File::delete($file);
+        }
+    }
+
+    foreach ($this->aiDirs as $dir) {
+        if (is_dir($dir) && count(File::files($dir)) === 0) {
+            File::deleteDirectory($dir);
+        }
     }
 });
 
@@ -73,4 +106,81 @@ it('overwrites existing files with --force', function () {
     // Content should be overwritten with stub content
     expect(file_get_contents($this->docsDir.'/README.md'))->not->toBe('Custom content')
         ->and(file_get_contents($this->docsDir.'/README.md'))->toContain('Welcome');
+});
+
+it('creates llms files with --with-ai=llms', function () {
+    $this->artisan('docs:init', ['--with-ai' => ['llms']])
+        ->assertSuccessful();
+
+    expect(file_exists(base_path('llms.txt')))->toBeTrue()
+        ->and(file_exists(base_path('llms-full.txt')))->toBeTrue();
+});
+
+it('creates cursor rules with --with-ai=cursor', function () {
+    $this->artisan('docs:init', ['--with-ai' => ['cursor']])
+        ->assertSuccessful();
+
+    expect(file_exists(base_path('.cursor/rules/docs-builder.mdc')))->toBeTrue();
+});
+
+it('creates copilot instructions with --with-ai=copilot', function () {
+    $this->artisan('docs:init', ['--with-ai' => ['copilot']])
+        ->assertSuccessful();
+
+    expect(file_exists(base_path('.github/copilot-instructions.md')))->toBeTrue();
+});
+
+it('creates claude instructions with --with-ai=claude', function () {
+    $this->artisan('docs:init', ['--with-ai' => ['claude']])
+        ->assertSuccessful();
+
+    expect(file_exists(base_path('CLAUDE.md')))->toBeTrue();
+});
+
+it('creates multiple AI tool configs with multiple --with-ai flags', function () {
+    $this->artisan('docs:init', ['--with-ai' => ['llms', 'cursor', 'copilot', 'claude']])
+        ->assertSuccessful();
+
+    expect(file_exists(base_path('llms.txt')))->toBeTrue()
+        ->and(file_exists(base_path('llms-full.txt')))->toBeTrue()
+        ->and(file_exists(base_path('.cursor/rules/docs-builder.mdc')))->toBeTrue()
+        ->and(file_exists(base_path('.github/copilot-instructions.md')))->toBeTrue()
+        ->and(file_exists(base_path('CLAUDE.md')))->toBeTrue();
+});
+
+it('skips existing AI files without --force', function () {
+    file_put_contents(base_path('CLAUDE.md'), 'Custom claude content');
+
+    $this->artisan('docs:init', ['--with-ai' => ['claude']])
+        ->assertSuccessful();
+
+    expect(file_get_contents(base_path('CLAUDE.md')))->toBe('Custom claude content');
+});
+
+it('overwrites existing AI files with --force', function () {
+    file_put_contents(base_path('CLAUDE.md'), 'Custom claude content');
+
+    $this->artisan('docs:init', ['--force' => true, '--with-ai' => ['claude']])
+        ->assertSuccessful();
+
+    expect(file_get_contents(base_path('CLAUDE.md')))->not->toBe('Custom claude content')
+        ->and(file_get_contents(base_path('CLAUDE.md')))->toContain('docs-builder');
+});
+
+it('ignores invalid --with-ai values', function () {
+    $this->artisan('docs:init', ['--with-ai' => ['invalid-tool']])
+        ->assertSuccessful();
+
+    // No AI files should be created
+    expect(file_exists(base_path('llms.txt')))->toBeFalse()
+        ->and(file_exists(base_path('CLAUDE.md')))->toBeFalse();
+});
+
+it('skips AI selection in non-interactive mode without --with-ai', function () {
+    $this->artisan('docs:init', ['--no-interaction' => true])
+        ->assertSuccessful();
+
+    // No AI files should be created
+    expect(file_exists(base_path('llms.txt')))->toBeFalse()
+        ->and(file_exists(base_path('CLAUDE.md')))->toBeFalse();
 });

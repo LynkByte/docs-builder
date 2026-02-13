@@ -1,0 +1,88 @@
+# lynkbyte/docs-builder
+
+> A Laravel package that compiles Markdown files and OpenAPI 3.x YAML specifications into a fully themed, searchable, static documentation site — with zero frontend build step required.
+
+## Overview
+
+Docs Builder is a Laravel package (PHP 8.3+, Laravel 11.x/12.x) that takes Markdown files and an optional OpenAPI YAML spec from a `docs/` directory and generates a complete static documentation website in `public/docs/`. It provides server-side syntax highlighting, Mermaid diagram rendering, client-side full-text search (Fuse.js), dark/light theme toggle, a responsive 3-column layout, and an interactive API reference with "Try it out" panels. No Node.js or frontend build step is required — pre-compiled CSS and JS ship with the package.
+
+## Quick Start
+
+Install:
+```bash
+composer require lynkbyte/docs-builder
+```
+
+Scaffold starter files:
+```bash
+php artisan docs:init
+```
+
+Build the documentation:
+```bash
+php artisan docs:build
+```
+
+View the output at `public/docs/index.html` or `/docs` in your running app.
+
+## Key Features
+
+- Markdown to HTML with GitHub Flavored Markdown (tables, task lists, strikethrough)
+- Server-side syntax highlighting for 15+ languages via Tempest Highlight
+- Mermaid diagram rendering (flowcharts, sequence diagrams, ERDs, etc.)
+- OpenAPI 3.x API reference generation with individual endpoint pages
+- Client-side full-text search via Fuse.js, triggered with Cmd+K / Ctrl+K
+- Dark/light theme toggle with OS preference detection
+- Responsive 3-column layout (sidebar, content, table of contents)
+- Pre-compiled assets (zero Node.js required) or optional Vite integration
+- Configurable branding: logo, header nav, Google Fonts, CSS theme overrides, footer
+- Publishable Blade views for full template control
+
+## Artisan Commands
+
+- `docs:init` — Scaffolds config, `docs/README.md`, and `docs/openapi.yaml`. Optionally includes AI tool configurations (llms.txt, Cursor rules, Copilot instructions, Claude instructions) via interactive prompt or `--with-ai` flag. Options: `--force`, `--with-ai=<tool>`
+- `docs:build` — Builds the static site from Markdown and OpenAPI sources. Options: `--skip-assets`
+
+## Core Architecture
+
+- `DocsBuilder` — Main orchestrator. Cleans output, builds navigation, renders pages via Blade, generates API reference pages, writes search index.
+- `MarkdownParser` — Converts Markdown to HTML using CommonMark + GFM + HeadingPermalink. Applies server-side syntax highlighting via Tempest Highlight. Processes Mermaid code blocks. Extracts headings, description, and plain text for search.
+- `OpenApiParser` — Parses OpenAPI 3.x YAML files using Symfony/Yaml. Extracts info, endpoints (grouped by tag), parameters, responses, security, and tag icons. Resolves `$ref` references.
+- `SearchIndexBuilder` — Accumulates page and endpoint entries. Generates `search-index.json` for client-side Fuse.js search.
+- `DocsBuilderServiceProvider` — Auto-discovered Laravel service provider. Registers config, views, commands, and seven publishable asset groups.
+
+## Configuration
+
+The config file is at `config/docs-builder.php`. Key settings:
+
+- `site_name` — Documentation site title (default: `'Documentation'`)
+- `site_description` — Meta description
+- `source_dir` — Markdown source directory (default: `base_path('docs')`)
+- `output_dir` — Built HTML output (default: `public_path('docs')`)
+- `openapi_file` — Path to OpenAPI YAML spec
+- `base_url` — URL prefix for generated links (default: `'/docs'`)
+- `logo` — null (default SVG), inline SVG/HTML string, or image URL
+- `header_nav` — Custom header links or null for defaults
+- `fonts` — Google Fonts URLs array, or false to disable
+- `asset_mode` — `'precompiled'` (default) or `'vite'`
+- `theme` — CSS custom property overrides (18 available variables for colors)
+- `navigation` — Sidebar structure: array of sections, each with pages (title, file, icon, layout)
+- `api_tag_icons` — Maps OpenAPI tags to Material Symbols icon names
+- `api_navigation` — API sidebar structure (auto-generated from openapi.yaml if empty)
+- `footer` — Copyright text and links array
+
+## Publishing
+
+Seven publishable groups for granular customization:
+
+- `docs-builder-config` — Config file to `config/docs-builder.php`
+- `docs-builder-views` — Blade templates to `resources/views/vendor/docs-builder/`
+- `docs-builder-assets` — Pre-compiled CSS/JS to `public/docs/assets/`
+- `docs-builder-css` — CSS source to `resources/css/docs.css`
+- `docs-builder-js` — JS source to `resources/js/docs.js`
+- `docs-builder-stubs` — Init scaffold templates to `stubs/docs-builder/`
+- `docs-builder-llms` — LLM documentation files (`llms.txt`, `llms-full.txt`) to project root
+
+## Detailed Documentation
+
+- [llms-full.txt](llms-full.txt): Comprehensive reference with full configuration options, all class methods, Blade template structure, build pipeline details, code examples, and customization guide.
