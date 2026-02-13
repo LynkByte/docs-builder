@@ -1,3 +1,4 @@
+<!-- docs-builder:start -->
 # lynkbyte/docs-builder — GitHub Copilot Instructions
 
 ## Project Overview
@@ -9,6 +10,7 @@ This is **lynkbyte/docs-builder**, a Laravel package that compiles Markdown file
 ```
 src/
 ├── Commands/
+│   ├── AiDocsCommand.php         # `docs:ai` — publishes AI tool configs
 │   ├── BuildDocsCommand.php      # `docs:build` — builds the static site
 │   └── InitDocsCommand.php       # `docs:init` — scaffolds starter files
 ├── DocsBuilder.php               # Core orchestrator — coordinates the entire build pipeline
@@ -124,3 +126,4 @@ src/
 - DON'T add database models or migrations — this is a static site generator.
 - DON'T break the zero-build-step promise — precompiled mode must work without Node.js.
 - DON'T add heavy runtime dependencies — this runs during build time only.
+<!-- docs-builder:end -->

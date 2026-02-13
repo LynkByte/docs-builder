@@ -3,6 +3,7 @@
 namespace LynkByte\DocsBuilder;
 
 use Illuminate\Support\ServiceProvider;
+use LynkByte\DocsBuilder\Commands\AiDocsCommand;
 use LynkByte\DocsBuilder\Commands\BuildDocsCommand;
 use LynkByte\DocsBuilder\Commands\InitDocsCommand;
 
@@ -19,6 +20,7 @@ class DocsBuilderServiceProvider extends ServiceProvider
 
         if ($this->app->runningInConsole()) {
             $this->commands([
+                AiDocsCommand::class,
                 BuildDocsCommand::class,
                 InitDocsCommand::class,
             ]);

@@ -40,7 +40,8 @@ View the output at `public/docs/index.html` or `/docs` in your running app.
 
 ## Artisan Commands
 
-- `docs:init` — Scaffolds config, `docs/README.md`, and `docs/openapi.yaml`. Optionally includes AI tool configurations (llms.txt, Cursor rules, Copilot instructions, Claude instructions) via interactive prompt or `--with-ai` flag. Options: `--force`, `--with-ai=<tool>`
+- `docs:init` — Scaffolds config, `docs/README.md`, and `docs/openapi.yaml`. Options: `--force`
+- `docs:ai` — Publishes AI coding assistant configurations (llms.txt, Cursor rules, Copilot instructions, Claude instructions). Appends to existing files with sentinel markers. Options: `--force`
 - `docs:build` — Builds the static site from Markdown and OpenAPI sources. Options: `--skip-assets`
 
 ## Core Architecture

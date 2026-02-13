@@ -1,3 +1,4 @@
+<!-- docs-builder:start -->
 # lynkbyte/docs-builder — Full Reference
 
 > A Laravel package that compiles Markdown files and OpenAPI 3.x YAML specifications into a fully themed, searchable, static documentation site — with zero frontend build step required.
@@ -64,6 +65,25 @@ php artisan docs:init --force   # Overwrite existing files
 2. Creates `docs/` directory if it doesn't exist
 3. Copies `docs/README.md` and `docs/openapi.yaml` from stubs (skips if exist, unless `--force`)
 4. Uses published stubs from `stubs/docs-builder/` if they exist, otherwise uses package defaults
+
+### `docs:ai`
+
+Publishes AI coding assistant configurations for docs-builder.
+
+```bash
+php artisan docs:ai
+php artisan docs:ai --force   # Replace existing docs-builder sections
+```
+
+**Options:**
+- `--force` — Replace existing docs-builder sections while preserving user content.
+
+**Behavior:**
+- Presents interactive multi-select prompt for tool selection (publishes all in non-interactive mode)
+- Appendable files are wrapped in `<!-- docs-builder:start -->` / `<!-- docs-builder:end -->` markers
+- Creates if missing, appends with separator if file exists, skips if markers present
+- `--force` replaces only the marked section, preserving surrounding content
+- Standalone files (`.cursor/rules/docs-builder.mdc`) are created or skipped
 
 ### `docs:build`
 
@@ -530,7 +550,7 @@ Auto-discovered Laravel service provider.
 
 **`boot()`:**
 - Loads Blade views from `resources/views` under the `docs-builder` namespace
-- Registers `docs:init` and `docs:build` commands (console only)
+- Registers `docs:init`, `docs:ai`, and `docs:build` commands (console only)
 - Defines six publishable asset groups (see Publishing section)
 
 ---
@@ -850,6 +870,7 @@ docs-builder/
 │       └── partials/               # Reusable partials (header, sidebar, toc, search, footer)
 ├── src/
 │   ├── Commands/
+│   │   ├── AiDocsCommand.php       # docs:ai Artisan command
 │   │   ├── BuildDocsCommand.php    # docs:build Artisan command
 │   │   └── InitDocsCommand.php     # docs:init Artisan command
 │   ├── DocsBuilder.php             # Core build orchestrator
@@ -873,3 +894,4 @@ docs-builder/
 ## License
 
 MIT License. Copyright 2026 LynkByte.
+<!-- docs-builder:end -->

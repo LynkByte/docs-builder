@@ -400,25 +400,42 @@ php artisan docs:init
 | Option | Description |
 |--------|-------------|
 | `--force` | Overwrite existing config and stub files if they already exist. |
-| `--with-ai=<tool>` | Include AI tool configurations without the interactive prompt. Repeatable. Valid values: `llms`, `cursor`, `copilot`, `claude`. |
 
 ```bash
 # Overwrite existing files
 php artisan docs:init --force
-
-# Include specific AI tool configs (non-interactive)
-php artisan docs:init --with-ai=llms --with-ai=cursor
-
-# Include all AI tool configs
-php artisan docs:init --with-ai=llms --with-ai=cursor --with-ai=copilot --with-ai=claude
 ```
 
-When run interactively (without `--with-ai`), the command presents a multi-select prompt to choose which AI tool configurations to include:
+### `docs:ai`
 
-- **llms.txt** — LLM-friendly documentation files (`llms.txt`, `llms-full.txt`)
-- **Cursor** — AI coding rules (`.cursor/rules/docs-builder.mdc`)
-- **GitHub Copilot** — Copilot instructions (`.github/copilot-instructions.md`)
-- **Claude** — Claude code instructions (`CLAUDE.md`)
+Publish AI coding assistant configurations for docs-builder. Creates context files for various AI tools so they understand the package.
+
+```bash
+php artisan docs:ai
+```
+
+| Option | Description |
+|--------|-------------|
+| `--force` | Replace existing docs-builder sections (preserves your custom content in the file). |
+
+When run interactively, the command presents a multi-select prompt to choose which AI tool configurations to include. In non-interactive mode (CI, testing), all tools are published.
+
+**Behavior for appendable files** (`llms.txt`, `llms-full.txt`, `copilot-instructions.md`, `CLAUDE.md`):
+- **File missing** — Creates the file with docs-builder content wrapped in sentinel markers
+- **File exists, no markers** — Appends with a `---` separator
+- **File exists, has markers** — Skips (use `--force` to replace)
+- **`--force`** — Replaces only the docs-builder section, preserving your content
+
+**Behavior for standalone files** (`.cursor/rules/docs-builder.mdc`):
+- **File missing** — Creates the file
+- **File exists** — Skips (use `--force` to overwrite)
+
+| Tool | Files Created | Destination |
+|------|--------------|-------------|
+| `llms` | `llms.txt`, `llms-full.txt` | Project root |
+| `cursor` | `docs-builder.mdc` | `.cursor/rules/` |
+| `copilot` | `copilot-instructions.md` | `.github/` |
+| `claude` | `CLAUDE.md` | Project root |
 
 ## Publishing
 
@@ -534,7 +551,7 @@ This repository includes machine-readable documentation for LLMs and AI coding a
 | [`llms-full.txt`](llms-full.txt) | Comprehensive reference with full configuration, class API, and examples |
 | [`.cursor/rules/docs-builder.mdc`](.cursor/rules/docs-builder.mdc) | AI coding rules for [Cursor](https://cursor.com/) and compatible assistants |
 
-Run `php artisan docs:init` and select the AI tools you use, or use `--with-ai` to include them non-interactively. You can also publish the LLM files separately:
+Run `php artisan docs:ai` to publish AI tool configurations for your project. You can also publish the LLM files separately:
 
 ```bash
 php artisan vendor:publish --tag=docs-builder-llms
