@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\File;
+use LynkByte\DocsBuilder\OpenApiParser;
 
 beforeEach(function () {
     $this->outputDir = config('docs-builder.output_dir');
@@ -50,5 +51,26 @@ it('outputs the correct page count', function () {
     // 3 doc pages (README, installation, api-reference) + 4 API endpoint pages = 7
     $this->artisan('docs:build', ['--skip-assets' => true])
         ->expectsOutputToContain('Pages built: 7')
+        ->assertSuccessful();
+});
+
+it('parses the OpenAPI spec only once', function () {
+    $openApiFile = config('docs-builder.openapi_file');
+
+    expect($openApiFile)->toBeString()
+        ->and(file_exists($openApiFile))->toBeTrue();
+
+    $real = new OpenApiParser();
+    $apiData = $real->parse($openApiFile);
+
+    $mock = Mockery::mock(OpenApiParser::class);
+    $mock->shouldReceive('parse')
+        ->once()
+        ->with($openApiFile)
+        ->andReturn($apiData);
+
+    $this->app->instance(OpenApiParser::class, $mock);
+
+    $this->artisan('docs:build', ['--skip-assets' => true])
         ->assertSuccessful();
 });
