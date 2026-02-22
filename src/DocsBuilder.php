@@ -26,10 +26,18 @@ class DocsBuilder
 
     private int $pagesBuilt = 0;
 
+    /** @var array<string, mixed>|null */
+    private ?array $apiDataCache = null;
+
+    /** @var array<string, array<int, array<string, mixed>>> */
+    private array $apiEndpointsCache = [];
+
     public function __construct()
     {
         $this->markdownParser = new MarkdownParser;
-        $this->openApiParser = new OpenApiParser;
+        $this->openApiParser = function_exists('app')
+            ? app(OpenApiParser::class)
+            : new OpenApiParser;
         $this->searchIndex = new SearchIndexBuilder;
         $this->config = config('docs-builder');
         $this->sourceDir = $this->config['source_dir'];
@@ -61,7 +69,7 @@ class DocsBuilder
         }
 
         // Build API reference pages from OpenAPI spec
-        $apiData = $this->buildApiReference($navigation);
+        $this->buildApiReference($navigation);
 
         // Write search index
         $this->searchIndex->writeTo($this->outputDir.'/search-index.json');
@@ -254,23 +262,10 @@ class DocsBuilder
      */
     private function buildApiReferencePage(array $page, array $parsed, array $navigation, array $breadcrumbs): void
     {
-        // Parse OpenAPI for sidebar navigation
-        $openApiFile = $this->config['openapi_file'];
-        $apiData = file_exists($openApiFile) ? $this->openApiParser->parse($openApiFile) : null;
+        $this->warmOpenApiCache();
 
-        // Build API endpoint URLs for sidebar
-        $apiEndpoints = [];
-        if ($apiData) {
-            foreach ($apiData['endpoints'] as $tag => $endpoints) {
-                $apiEndpoints[$tag] = [];
-                foreach ($endpoints as $endpoint) {
-                    $endpointSlug = 'api-reference/'.$endpoint['operationId'];
-                    $apiEndpoints[$tag][] = array_merge($endpoint, [
-                        'url' => $this->baseUrl.'/'.$endpointSlug.'/index.html',
-                    ]);
-                }
-            }
-        }
+        $apiData = $this->apiDataCache;
+        $apiEndpoints = $this->apiEndpointsCache;
 
         $viewData = array_merge($this->resolveSharedViewData(), [
             'baseUrl' => $this->baseUrl,
@@ -285,8 +280,8 @@ class DocsBuilder
             'footer' => $this->config['footer'],
             // API-specific data
             'apiEndpoints' => $apiEndpoints,
-            'tagIcons' => $apiData['tagIcons'] ?? [],
-            'apiVersion' => $apiData['info']['version'] ?? 'v1',
+            'tagIcons' => is_array($apiData) ? ($apiData['tagIcons'] ?? []) : [],
+            'apiVersion' => is_array($apiData) ? (($apiData['info']['version'] ?? 'v1')) : 'v1',
             // No endpoint-specific data (this is the overview)
             'endpointMethod' => null,
             'endpointPath' => null,
@@ -307,24 +302,14 @@ class DocsBuilder
      */
     private function buildApiReference(array $navigation): ?array
     {
-        $openApiFile = $this->config['openapi_file'];
-        if (! file_exists($openApiFile)) {
+        $this->warmOpenApiCache();
+
+        $apiData = $this->apiDataCache;
+        if (!is_array($apiData)) {
             return null;
         }
 
-        $apiData = $this->openApiParser->parse($openApiFile);
-
-        // Build API endpoint URLs for sidebar
-        $apiEndpoints = [];
-        foreach ($apiData['endpoints'] as $tag => $endpoints) {
-            $apiEndpoints[$tag] = [];
-            foreach ($endpoints as $endpoint) {
-                $endpointSlug = 'api-reference/'.$endpoint['operationId'];
-                $apiEndpoints[$tag][] = array_merge($endpoint, [
-                    'url' => $this->baseUrl.'/'.$endpointSlug.'/index.html',
-                ]);
-            }
-        }
+        $apiEndpoints = $this->apiEndpointsCache;
 
         // Build individual endpoint pages
         foreach ($apiData['endpoints'] as $tag => $endpoints) {
@@ -350,7 +335,7 @@ class DocsBuilder
                     'footer' => $this->config['footer'],
                     // API-specific data
                     'apiEndpoints' => $apiEndpoints,
-                    'tagIcons' => $apiData['tagIcons'],
+                    'tagIcons' => $apiData['tagIcons'] ?? [],
                     'apiVersion' => $apiData['info']['version'] ?? 'v1',
                     'endpointMethod' => $endpoint['method'],
                     'endpointPath' => $endpoint['path'],
@@ -377,6 +362,55 @@ class DocsBuilder
         }
 
         return $apiData;
+    }
+
+    /**
+     * Parse OpenAPI spec once and cache both apiData and sidebar endpoints.
+     */
+    private function warmOpenApiCache(): void
+    {
+        if ($this->apiDataCache !== null) {
+            return;
+        }
+
+        $openApiFile = $this->config['openapi_file'] ?? null;
+        $default = [
+            'info' => ['version' => 'v1'],
+            'endpoints' => [],
+            'tagIcons' => [],
+        ];
+
+        if (!$openApiFile || !file_exists($openApiFile)) {
+            $this->apiDataCache = $default;
+            $this->apiEndpointsCache = [];
+            return;
+        }
+
+        $apiData = $this->openApiParser->parse($openApiFile);
+        if (!is_array($apiData)) {
+            $this->apiDataCache = $default;
+            $this->apiEndpointsCache = [];
+            return;
+        }
+
+        $apiData['info'] = is_array($apiData['info'] ?? null) ? $apiData['info'] : [];
+        $apiData['info']['version'] = $apiData['info']['version'] ?? 'v1';
+        $apiData['endpoints'] = is_array($apiData['endpoints'] ?? null) ? $apiData['endpoints'] : [];
+        $apiData['tagIcons'] = is_array($apiData['tagIcons'] ?? null) ? $apiData['tagIcons'] : [];
+
+        $this->apiDataCache = $apiData;
+
+        $apiEndpoints = [];
+        foreach ($apiData['endpoints'] as $tag => $endpoints) {
+            $apiEndpoints[$tag] = [];
+            foreach ($endpoints as $endpoint) {
+                $endpointSlug = 'api-reference/'.$endpoint['operationId'];
+                $apiEndpoints[$tag][] = array_merge($endpoint, [
+                    'url' => $this->baseUrl.'/'.$endpointSlug.'/index.html',
+                ]);
+            }
+        }
+        $this->apiEndpointsCache = $apiEndpoints;
     }
 
     /**
