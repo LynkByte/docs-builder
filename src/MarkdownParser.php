@@ -89,6 +89,9 @@ class MarkdownParser
         // Apply syntax highlighting and styled code block wrappers
         $html = $this->postProcessCodeBlocks($html);
 
+        // Wrap tables in a scrollable container to prevent overflow
+        $html = $this->postProcessTables($html);
+
         // Extract headings from the rendered HTML
         $headings = $this->extractHeadings($html);
 
@@ -120,6 +123,9 @@ class MarkdownParser
 
         // Apply syntax highlighting and styled code block wrappers
         $html = $this->postProcessCodeBlocks($html);
+
+        // Wrap tables in a scrollable container to prevent overflow
+        $html = $this->postProcessTables($html);
 
         return [
             'html' => $html,
@@ -194,6 +200,18 @@ class MarkdownParser
         );
 
         return $html;
+    }
+
+    /**
+     * Wrap tables in a scrollable container to prevent wide tables from overflowing.
+     */
+    private function postProcessTables(string $html): string
+    {
+        return preg_replace(
+            '/<table([\s\S]*?)<\/table>/',
+            '<div class="docs-table-wrapper"><table$1</table></div>',
+            $html
+        );
     }
 
     /**

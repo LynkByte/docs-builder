@@ -107,6 +107,13 @@ it('renders gfm tables', function () {
         ->and($result['html'])->toContain('Col A');
 });
 
+it('wraps tables in a scrollable container', function () {
+    $result = $this->parser->parseString("| Col A | Col B |\n|-------|-------|\n| one   | two   |");
+
+    expect($result['html'])->toContain('<div class="docs-table-wrapper"><table')
+        ->and($result['html'])->toContain('</table></div>');
+});
+
 it('renders strikethrough', function () {
     $file = $this->tempDir.'/test.md';
     file_put_contents($file, 'This is ~~deleted~~ text.');
