@@ -31,6 +31,8 @@ View the output at `public/docs/index.html` or `/docs` in your running app.
 - Markdown to HTML with GitHub Flavored Markdown (tables, task lists, strikethrough)
 - Server-side syntax highlighting for 15+ languages via Tempest Highlight
 - Mermaid diagram rendering (flowcharts, sequence diagrams, ERDs, etc.)
+- Image enhancement (figure/caption wrapping, click-to-zoom lightbox, lazy loading)
+- Video embeds (YouTube/Vimeo auto-embed as privacy-enhanced iframes, native `<video>` for .mp4/.webm/.ogg)
 - OpenAPI 3.x API reference generation with individual endpoint pages
 - Client-side full-text search via Fuse.js, triggered with Cmd+K / Ctrl+K
 - Dark/light theme toggle with OS preference detection
@@ -48,7 +50,7 @@ View the output at `public/docs/index.html` or `/docs` in your running app.
 ## Core Architecture
 
 - `DocsBuilder` — Main orchestrator. Cleans output, builds navigation, renders pages via Blade, generates API reference pages, writes search index.
-- `MarkdownParser` — Converts Markdown to HTML using CommonMark + GFM + HeadingPermalink. Applies server-side syntax highlighting via Tempest Highlight. Processes Mermaid code blocks. Extracts headings, description, and plain text for search.
+- `MarkdownParser` — Converts Markdown to HTML using CommonMark + GFM + HeadingPermalink. Applies server-side syntax highlighting via Tempest Highlight. Processes Mermaid code blocks. Post-processes images (figure/caption, lazy loading, lightbox) and video URLs (YouTube/Vimeo auto-embeds, local video). Extracts headings, description, and plain text for search.
 - `OpenApiParser` — Parses OpenAPI 3.x YAML files using Symfony/Yaml. Extracts info, endpoints (grouped by tag), parameters, responses, security, and tag icons. Resolves `$ref` references.
 - `SearchIndexBuilder` — Accumulates page and endpoint entries. Generates `search-index.json` for client-side Fuse.js search.
 - `DocsBuilderServiceProvider` — Auto-discovered Laravel service provider. Registers config, views, commands, and six publishable asset groups.

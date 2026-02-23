@@ -92,6 +92,12 @@ class MarkdownParser
         // Wrap tables in a scrollable container to prevent overflow
         $html = $this->postProcessTables($html);
 
+        // Convert video URLs to responsive embeds
+        $html = $this->postProcessVideos($html);
+
+        // Wrap standalone images in <figure> and add lazy loading
+        $html = $this->postProcessImages($html);
+
         // Extract headings from the rendered HTML
         $headings = $this->extractHeadings($html);
 
@@ -126,6 +132,12 @@ class MarkdownParser
 
         // Wrap tables in a scrollable container to prevent overflow
         $html = $this->postProcessTables($html);
+
+        // Convert video URLs to responsive embeds
+        $html = $this->postProcessVideos($html);
+
+        // Wrap standalone images in <figure> and add lazy loading
+        $html = $this->postProcessImages($html);
 
         return [
             'html' => $html,
@@ -212,6 +224,120 @@ class MarkdownParser
             '<div class="docs-table-wrapper"><table$1</table></div>',
             $html
         );
+    }
+
+    /**
+     * Post-process images: wrap standalone images in <figure> and add lazy loading.
+     */
+    private function postProcessImages(string $html): string
+    {
+        // Wrap standalone images (sole child of a <p>) in <figure> with optional <figcaption>
+        $html = preg_replace_callback(
+            '/<p>\s*(<img\s[^>]*\/?>)\s*<\/p>/',
+            function (array $matches): string {
+                $imgTag = $matches[1];
+
+                // Add loading="lazy" if not already present
+                if (! str_contains($imgTag, 'loading=')) {
+                    $imgTag = str_replace('<img ', '<img loading="lazy" ', $imgTag);
+                }
+
+                // Extract alt text for figcaption
+                $alt = '';
+                if (preg_match('/alt="([^"]*)"/', $imgTag, $altMatch)) {
+                    $alt = $altMatch[1];
+                }
+
+                $figure = '<figure class="docs-figure">'.$imgTag;
+                if ($alt !== '') {
+                    $figure .= '<figcaption>'.$alt.'</figcaption>';
+                }
+                $figure .= '</figure>';
+
+                return $figure;
+            },
+            $html
+        ) ?? $html;
+
+        // Add loading="lazy" to any remaining inline images not already processed
+        $html = preg_replace(
+            '/<img(?![^>]*loading=)([^>]*?)(\s*\/?>)/',
+            '<img loading="lazy"$1$2',
+            $html
+        ) ?? $html;
+
+        return $html;
+    }
+
+    /**
+     * Post-process video URLs: convert autolinked video URLs to responsive embeds.
+     */
+    private function postProcessVideos(string $html): string
+    {
+        // Match paragraphs containing only a single autolinked URL (href and text both start with http)
+        return preg_replace_callback(
+            '/<p>\s*<a href="(https?:\/\/[^"]+)">https?:\/\/[^<]+<\/a>\s*<\/p>/',
+            function (array $matches): string {
+                $url = html_entity_decode($matches[1], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+                // YouTube: youtube.com/watch?v=ID, youtu.be/ID, youtube.com/embed/ID
+                if (preg_match('/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]+)/', $url, $m)) {
+                    return $this->buildYouTubeEmbed($m[1]);
+                }
+
+                // Vimeo: vimeo.com/ID, player.vimeo.com/video/ID
+                if (preg_match('/(?:vimeo\.com\/|player\.vimeo\.com\/video\/)(\d+)/', $url, $m)) {
+                    return $this->buildVimeoEmbed($m[1]);
+                }
+
+                // Local video files: .mp4, .webm, .ogg
+                if (preg_match('/\.(mp4|webm|ogg)(?:\?[^"]*)?$/i', $url)) {
+                    return $this->buildVideoElement($url);
+                }
+
+                // Not a recognized video URL, return unchanged
+                return $matches[0];
+            },
+            $html
+        ) ?? $html;
+    }
+
+    /**
+     * Build a responsive YouTube embed iframe.
+     */
+    private function buildYouTubeEmbed(string $videoId): string
+    {
+        return '<div class="docs-video-wrapper">'
+            .'<iframe src="https://www.youtube-nocookie.com/embed/'.$videoId.'"'
+            .' title="YouTube video player"'
+            .' allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"'
+            .' allowfullscreen></iframe>'
+            .'</div>';
+    }
+
+    /**
+     * Build a responsive Vimeo embed iframe.
+     */
+    private function buildVimeoEmbed(string $videoId): string
+    {
+        return '<div class="docs-video-wrapper">'
+            .'<iframe src="https://player.vimeo.com/video/'.$videoId.'"'
+            .' title="Vimeo video player"'
+            .' allow="autoplay; fullscreen; picture-in-picture"'
+            .' allowfullscreen></iframe>'
+            .'</div>';
+    }
+
+    /**
+     * Build a responsive HTML5 video element.
+     */
+    private function buildVideoElement(string $url): string
+    {
+        $escapedUrl = htmlspecialchars($url, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+        return '<div class="docs-video-wrapper">'
+            .'<video src="'.$escapedUrl.'" controls preload="metadata"></video>'
+            .'</div>';
     }
 
     /**

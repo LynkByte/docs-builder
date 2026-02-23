@@ -390,7 +390,7 @@ The main orchestrator that coordinates the entire build process. Instantiated by
 
 **Location:** `src/MarkdownParser.php`
 
-Converts Markdown to HTML with rich processing: CommonMark + GFM extensions, heading permalinks, server-side syntax highlighting, and Mermaid diagram support.
+Converts Markdown to HTML with rich processing: CommonMark + GFM extensions, heading permalinks, server-side syntax highlighting, Mermaid diagram support, image enhancement (figure/caption, lazy loading, lightbox), and video URL auto-embedding (YouTube, Vimeo, local video).
 
 **Public methods:**
 
@@ -412,6 +412,8 @@ Converts Markdown to HTML with rich processing: CommonMark + GFM extensions, hea
 - GitHub Flavored Markdown (tables, task lists, strikethrough)
 - Heading permalinks (auto-generated IDs, `#` anchor links, h1-h4)
 - YAML front matter stripping (`---` delimited)
+- Image post-processing (standalone images wrapped in `<figure>` with alt-text `<figcaption>`, all images get `loading="lazy"`, click-to-zoom lightbox)
+- Video URL auto-embedding (YouTube/Vimeo URLs become privacy-enhanced iframes, `.mp4`/`.webm`/`.ogg` URLs become native `<video>` elements, all in responsive 16:9 containers)
 - `{SiteName}` placeholder (replaced by `DocsBuilder`, not by the parser)
 
 **Syntax highlighting:**
@@ -689,6 +691,8 @@ Place Markdown files in the `source_dir` directory (`docs/` by default). All sta
 | Strikethrough | `~~text~~` |
 | Fenced code blocks | `` ```php `` |
 | Heading anchors | Auto-generated from heading text |
+| Images | `![alt text](url)` — standalone images get figure/caption + lightbox |
+| Videos | Paste a URL on its own line (YouTube, Vimeo, or `.mp4`/`.webm`/`.ogg`) |
 
 ### YAML Front Matter
 
@@ -737,6 +741,40 @@ graph TD
 Diagrams auto-adapt to dark/light theme. Mermaid JS loads from CDN. All diagram types are supported: flowcharts, sequence diagrams, class diagrams, ERDs, Gantt charts, etc.
 
 The rendered diagram includes a toolbar with zoom in, zoom out, reset, and fullscreen controls.
+
+### Images
+
+Standard Markdown images are automatically enhanced during the build:
+
+- **Standalone images** (the only content in a paragraph) are wrapped in a `<figure>` element. The alt text becomes a `<figcaption>` below the image.
+- **Inline images** (mixed with text in the same paragraph) are left inline — they are not wrapped in a figure.
+- **Lazy loading** — All images receive `loading="lazy"` for deferred off-screen loading.
+- **Lightbox** — Click any image in the documentation content to view it in a fullscreen overlay. Press `Escape` or click outside the image to close.
+
+```markdown
+<!-- Standalone: rendered as <figure> with caption -->
+![Architecture overview](images/architecture.png)
+
+<!-- Inline: not wrapped, just lazy-loaded -->
+Check the icon ![icon](images/check.png) for details.
+```
+
+### Videos
+
+Paste a video URL on its own line (no surrounding text, no Markdown link syntax) and it will be automatically converted into an embedded player:
+
+| URL Pattern | Result |
+|-------------|--------|
+| `https://www.youtube.com/watch?v=VIDEO_ID` | YouTube embed (privacy-enhanced via `youtube-nocookie.com`) |
+| `https://youtu.be/VIDEO_ID` | YouTube embed (privacy-enhanced) |
+| `https://vimeo.com/VIDEO_ID` | Vimeo embed |
+| `https://example.com/video.mp4` | Native `<video>` element |
+| `https://example.com/video.webm` | Native `<video>` element |
+| `https://example.com/video.ogg` | Native `<video>` element |
+
+All video embeds are wrapped in a responsive 16:9 container. YouTube embeds use the `youtube-nocookie.com` domain for privacy-enhanced mode.
+
+The URL must be on its own line and auto-linked by GFM. Explicit Markdown links like `[Watch this](https://youtube.com/...)` are not converted — they remain as regular links.
 
 ### Site Name Placeholder
 

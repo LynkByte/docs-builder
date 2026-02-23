@@ -546,6 +546,74 @@ import Fuse from 'fuse.js';
     }
 
     // =========================================================================
+    // IMAGE LIGHTBOX
+    // =========================================================================
+    function initLightbox() {
+        let lightboxTrigger = null;
+
+        // Create lightbox overlay element
+        const overlay = document.createElement('div');
+        overlay.className = 'docs-lightbox';
+        overlay.setAttribute('role', 'dialog');
+        overlay.setAttribute('aria-modal', 'true');
+        overlay.setAttribute('aria-label', 'Image preview');
+        overlay.innerHTML =
+            '<button class="docs-lightbox-close" aria-label="Close"><span class="material-symbols-outlined" aria-hidden="true">close</span></button>' +
+            '<img src="" alt="" />';
+        document.body.appendChild(overlay);
+
+        const lightboxImg = overlay.querySelector('img');
+        const closeBtn = overlay.querySelector('.docs-lightbox-close');
+
+        function openLightbox(src, alt) {
+            lightboxTrigger = document.activeElement;
+            lightboxImg.src = src;
+            lightboxImg.alt = alt || '';
+            overlay.classList.add('active');
+            document.body.style.overflow = 'hidden';
+            closeBtn.focus();
+        }
+
+        function closeLightbox() {
+            overlay.classList.remove('active');
+            document.body.style.overflow = '';
+            lightboxTrigger?.focus();
+            // Clear src after transition to free memory
+            setTimeout(() => {
+                if (!overlay.classList.contains('active')) {
+                    lightboxImg.src = '';
+                }
+            }, 300);
+        }
+
+        // Attach click to all content images
+        document.querySelectorAll('.docs-content img').forEach(img => {
+            img.addEventListener('click', () => {
+                openLightbox(img.src, img.alt);
+            });
+        });
+
+        // Close handlers
+        closeBtn.addEventListener('click', closeLightbox);
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+                closeLightbox();
+            }
+        });
+        document.addEventListener('keydown', (e) => {
+            if (!overlay.classList.contains('active')) return;
+            if (e.key === 'Escape') {
+                closeLightbox();
+            }
+            // Trap Tab focus within the lightbox
+            if (e.key === 'Tab') {
+                e.preventDefault();
+                closeBtn.focus();
+            }
+        });
+    }
+
+    // =========================================================================
     // INITIALIZE
     // =========================================================================
     function init() {
@@ -557,6 +625,7 @@ import Fuse from 'fuse.js';
         initTocHighlight();
         initSmoothScroll();
         initMobileSidebar();
+        initLightbox();
     }
 
     // Run on DOM ready
