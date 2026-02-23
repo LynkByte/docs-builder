@@ -230,6 +230,22 @@ it('converts video file url to html5 video element', function () {
         ->and($result['html'])->toContain('preload="metadata"');
 });
 
+it('converts webm file url to html5 video element', function () {
+    $result = $this->parser->parseString('https://example.com/demo.webm');
+
+    expect($result['html'])->toContain('<div class="docs-video-wrapper">')
+        ->and($result['html'])->toContain('<video src="https://example.com/demo.webm"')
+        ->and($result['html'])->toContain('controls');
+});
+
+it('converts ogg file url to html5 video element', function () {
+    $result = $this->parser->parseString('https://example.com/demo.ogg');
+
+    expect($result['html'])->toContain('<div class="docs-video-wrapper">')
+        ->and($result['html'])->toContain('<video src="https://example.com/demo.ogg"')
+        ->and($result['html'])->toContain('controls');
+});
+
 it('does not convert video url with surrounding text', function () {
     $result = $this->parser->parseString('Check out https://www.youtube.com/watch?v=dQw4w9WgXcQ for more.');
 

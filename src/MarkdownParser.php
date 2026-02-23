@@ -257,14 +257,14 @@ class MarkdownParser
                 return $figure;
             },
             $html
-        );
+        ) ?? $html;
 
         // Add loading="lazy" to any remaining inline images not already processed
         $html = preg_replace(
             '/<img(?![^>]*loading=)([^>]*?)(\s*\/?>)/',
             '<img loading="lazy"$1$2',
             $html
-        );
+        ) ?? $html;
 
         return $html;
     }
@@ -299,7 +299,7 @@ class MarkdownParser
                 return $matches[0];
             },
             $html
-        );
+        ) ?? $html;
     }
 
     /**
@@ -309,7 +309,7 @@ class MarkdownParser
     {
         return '<div class="docs-video-wrapper">'
             .'<iframe src="https://www.youtube-nocookie.com/embed/'.$videoId.'"'
-            .' frameborder="0"'
+            .' title="YouTube video player"'
             .' allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"'
             .' allowfullscreen></iframe>'
             .'</div>';
@@ -322,7 +322,7 @@ class MarkdownParser
     {
         return '<div class="docs-video-wrapper">'
             .'<iframe src="https://player.vimeo.com/video/'.$videoId.'"'
-            .' frameborder="0"'
+            .' title="Vimeo video player"'
             .' allow="autoplay; fullscreen; picture-in-picture"'
             .' allowfullscreen></iframe>'
             .'</div>';

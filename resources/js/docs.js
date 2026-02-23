@@ -549,11 +549,16 @@ import Fuse from 'fuse.js';
     // IMAGE LIGHTBOX
     // =========================================================================
     function initLightbox() {
+        let lightboxTrigger = null;
+
         // Create lightbox overlay element
         const overlay = document.createElement('div');
         overlay.className = 'docs-lightbox';
+        overlay.setAttribute('role', 'dialog');
+        overlay.setAttribute('aria-modal', 'true');
+        overlay.setAttribute('aria-label', 'Image preview');
         overlay.innerHTML =
-            '<button class="docs-lightbox-close" title="Close"><span class="material-symbols-outlined">close</span></button>' +
+            '<button class="docs-lightbox-close" aria-label="Close"><span class="material-symbols-outlined" aria-hidden="true">close</span></button>' +
             '<img src="" alt="" />';
         document.body.appendChild(overlay);
 
@@ -561,15 +566,18 @@ import Fuse from 'fuse.js';
         const closeBtn = overlay.querySelector('.docs-lightbox-close');
 
         function openLightbox(src, alt) {
+            lightboxTrigger = document.activeElement;
             lightboxImg.src = src;
             lightboxImg.alt = alt || '';
             overlay.classList.add('active');
             document.body.style.overflow = 'hidden';
+            closeBtn.focus();
         }
 
         function closeLightbox() {
             overlay.classList.remove('active');
             document.body.style.overflow = '';
+            lightboxTrigger?.focus();
             // Clear src after transition to free memory
             setTimeout(() => {
                 if (!overlay.classList.contains('active')) {
@@ -593,8 +601,14 @@ import Fuse from 'fuse.js';
             }
         });
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && overlay.classList.contains('active')) {
+            if (!overlay.classList.contains('active')) return;
+            if (e.key === 'Escape') {
                 closeLightbox();
+            }
+            // Trap Tab focus within the lightbox
+            if (e.key === 'Tab') {
+                e.preventDefault();
+                closeBtn.focus();
             }
         });
     }
