@@ -26,10 +26,16 @@ class DocsBuilder
 
     private int $pagesBuilt = 0;
 
-    public function __construct()
+    /** @var array<string, mixed>|null */
+    private ?array $apiDataCache = null;
+
+    /** @var array<string, array<int, array<string, mixed>>>|null */
+    private ?array $apiEndpointsCache = null;
+
+    public function __construct(?OpenApiParser $parser = null)
     {
         $this->markdownParser = new MarkdownParser;
-        $this->openApiParser = new OpenApiParser;
+        $this->openApiParser = $parser ?? new OpenApiParser;
         $this->searchIndex = new SearchIndexBuilder;
         $this->config = config('docs-builder');
         $this->sourceDir = $this->config['source_dir'];
@@ -61,7 +67,7 @@ class DocsBuilder
         }
 
         // Build API reference pages from OpenAPI spec
-        $apiData = $this->buildApiReference($navigation);
+        $this->buildApiReference($navigation);
 
         // Write search index
         $this->searchIndex->writeTo($this->outputDir.'/search-index.json');
@@ -170,6 +176,56 @@ class DocsBuilder
     }
 
     /**
+     * Get parsed OpenAPI data, caching the result for reuse.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function getApiData(): ?array
+    {
+        if ($this->apiDataCache !== null) {
+            return $this->apiDataCache;
+        }
+
+        $openApiFile = $this->config['openapi_file'];
+        if (! file_exists($openApiFile)) {
+            return null;
+        }
+
+        $this->apiDataCache = $this->openApiParser->parse($openApiFile);
+
+        return $this->apiDataCache;
+    }
+
+    /**
+     * Get API endpoints with URLs, caching the result for reuse.
+     *
+     * @return array<string, array<int, array<string, mixed>>>
+     */
+    private function getApiEndpoints(): array
+    {
+        if ($this->apiEndpointsCache !== null) {
+            return $this->apiEndpointsCache;
+        }
+
+        $apiData = $this->getApiData();
+        $this->apiEndpointsCache = [];
+
+        if ($apiData) {
+            foreach ($apiData['endpoints'] as $tag => $endpoints) {
+                $this->apiEndpointsCache[$tag] = [];
+                foreach ($endpoints as $endpoint) {
+                    $endpointSlug = 'api-reference/'.$endpoint['operationId'];
+                    $this->apiEndpointsCache[$tag][] = array_merge($endpoint, [
+                        'url' => $this->baseUrl.'/'.$endpointSlug.'/index.html',
+                    ]);
+                }
+            }
+        }
+
+        return $this->apiEndpointsCache;
+    }
+
+    /**
      * Build a single documentation page.
      *
      * @param  array<string, mixed>  $page
@@ -254,23 +310,8 @@ class DocsBuilder
      */
     private function buildApiReferencePage(array $page, array $parsed, array $navigation, array $breadcrumbs): void
     {
-        // Parse OpenAPI for sidebar navigation
-        $openApiFile = $this->config['openapi_file'];
-        $apiData = file_exists($openApiFile) ? $this->openApiParser->parse($openApiFile) : null;
-
-        // Build API endpoint URLs for sidebar
-        $apiEndpoints = [];
-        if ($apiData) {
-            foreach ($apiData['endpoints'] as $tag => $endpoints) {
-                $apiEndpoints[$tag] = [];
-                foreach ($endpoints as $endpoint) {
-                    $endpointSlug = 'api-reference/'.$endpoint['operationId'];
-                    $apiEndpoints[$tag][] = array_merge($endpoint, [
-                        'url' => $this->baseUrl.'/'.$endpointSlug.'/index.html',
-                    ]);
-                }
-            }
-        }
+        $apiData = $this->getApiData();
+        $apiEndpoints = $this->getApiEndpoints();
 
         $viewData = array_merge($this->resolveSharedViewData(), [
             'baseUrl' => $this->baseUrl,
@@ -303,28 +344,15 @@ class DocsBuilder
      * Build individual API endpoint pages from the OpenAPI spec.
      *
      * @param  array<int, array<string, mixed>>  $navigation
-     * @return array<string, mixed>|null
      */
-    private function buildApiReference(array $navigation): ?array
+    private function buildApiReference(array $navigation): void
     {
-        $openApiFile = $this->config['openapi_file'];
-        if (! file_exists($openApiFile)) {
-            return null;
+        $apiData = $this->getApiData();
+        if (! $apiData) {
+            return;
         }
 
-        $apiData = $this->openApiParser->parse($openApiFile);
-
-        // Build API endpoint URLs for sidebar
-        $apiEndpoints = [];
-        foreach ($apiData['endpoints'] as $tag => $endpoints) {
-            $apiEndpoints[$tag] = [];
-            foreach ($endpoints as $endpoint) {
-                $endpointSlug = 'api-reference/'.$endpoint['operationId'];
-                $apiEndpoints[$tag][] = array_merge($endpoint, [
-                    'url' => $this->baseUrl.'/'.$endpointSlug.'/index.html',
-                ]);
-            }
-        }
+        $apiEndpoints = $this->getApiEndpoints();
 
         // Build individual endpoint pages
         foreach ($apiData['endpoints'] as $tag => $endpoints) {
@@ -375,8 +403,6 @@ class DocsBuilder
                 $this->pagesBuilt++;
             }
         }
-
-        return $apiData;
     }
 
     /**

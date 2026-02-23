@@ -1,6 +1,8 @@
 <?php
 
 use Illuminate\Support\Facades\File;
+use LynkByte\DocsBuilder\DocsBuilder;
+use LynkByte\DocsBuilder\OpenApiParser;
 
 beforeEach(function () {
     $this->outputDir = config('docs-builder.output_dir');
@@ -51,4 +53,31 @@ it('outputs the correct page count', function () {
     $this->artisan('docs:build', ['--skip-assets' => true])
         ->expectsOutputToContain('Pages built: 7')
         ->assertSuccessful();
+});
+
+it('parses the OpenAPI spec only once during build', function () {
+    $mock = Mockery::mock(OpenApiParser::class);
+    $mock->shouldReceive('parse')
+        ->once()
+        ->andReturn([
+            'info' => ['title' => 'Test API', 'version' => '1.0.0'],
+            'servers' => [['url' => 'https://api.example.com']],
+            'tagIcons' => ['Users' => 'people'],
+            'endpoints' => [
+                'Users' => [
+                    [
+                        'operationId' => 'list-users',
+                        'summary' => 'List Users',
+                        'description' => 'Get all users',
+                        'method' => 'GET',
+                        'path' => '/users',
+                        'parameters' => [],
+                        'responses' => [],
+                    ],
+                ],
+            ],
+        ]);
+
+    $builder = new DocsBuilder($mock);
+    $builder->build();
 });
