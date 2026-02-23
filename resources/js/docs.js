@@ -546,6 +546,60 @@ import Fuse from 'fuse.js';
     }
 
     // =========================================================================
+    // IMAGE LIGHTBOX
+    // =========================================================================
+    function initLightbox() {
+        // Create lightbox overlay element
+        const overlay = document.createElement('div');
+        overlay.className = 'docs-lightbox';
+        overlay.innerHTML =
+            '<button class="docs-lightbox-close" title="Close"><span class="material-symbols-outlined">close</span></button>' +
+            '<img src="" alt="" />';
+        document.body.appendChild(overlay);
+
+        const lightboxImg = overlay.querySelector('img');
+        const closeBtn = overlay.querySelector('.docs-lightbox-close');
+
+        function openLightbox(src, alt) {
+            lightboxImg.src = src;
+            lightboxImg.alt = alt || '';
+            overlay.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeLightbox() {
+            overlay.classList.remove('active');
+            document.body.style.overflow = '';
+            // Clear src after transition to free memory
+            setTimeout(() => {
+                if (!overlay.classList.contains('active')) {
+                    lightboxImg.src = '';
+                }
+            }, 300);
+        }
+
+        // Attach click to all content images
+        document.querySelectorAll('.docs-content img').forEach(img => {
+            img.addEventListener('click', () => {
+                openLightbox(img.src, img.alt);
+            });
+        });
+
+        // Close handlers
+        closeBtn.addEventListener('click', closeLightbox);
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+                closeLightbox();
+            }
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && overlay.classList.contains('active')) {
+                closeLightbox();
+            }
+        });
+    }
+
+    // =========================================================================
     // INITIALIZE
     // =========================================================================
     function init() {
@@ -557,6 +611,7 @@ import Fuse from 'fuse.js';
         initTocHighlight();
         initSmoothScroll();
         initMobileSidebar();
+        initLightbox();
     }
 
     // Run on DOM ready

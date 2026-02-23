@@ -14,6 +14,8 @@ A Laravel package that compiles Markdown files and OpenAPI 3.x YAML specificatio
 - **Markdown with GFM** — Tables, task lists, strikethrough, and all GitHub Flavored Markdown extensions
 - **Server-side syntax highlighting** — 15+ languages via [Tempest Highlight](https://github.com/tempestphp/highlight), with styled code blocks, language labels, and copy-to-clipboard buttons
 - **Mermaid diagrams** — Render flowcharts, sequence diagrams, ERDs, and more using fenced `mermaid` code blocks, with automatic dark/light theme support
+- **Image support** — Standalone images are wrapped in `<figure>` with alt-text captions, click-to-zoom lightbox overlay, and lazy loading for all images
+- **Video embeds** — YouTube and Vimeo URLs are auto-embedded as privacy-enhanced iframes; local `.mp4`/`.webm`/`.ogg` URLs render as native `<video>` elements with responsive 16:9 containers
 - **OpenAPI 3.x API reference** — Auto-generates endpoint pages from your YAML spec with parameters, responses, and an interactive "Try it out" panel
 - **Client-side search** — Instant full-text search powered by [Fuse.js](https://www.fusejs.io/) with a keyboard-driven command palette (`Cmd+K` / `Ctrl+K`)
 - **Dark / light theme** — Class-based toggle with OS preference detection and `localStorage` persistence
@@ -290,6 +292,51 @@ graph TD
 ````
 
 Diagrams automatically adapt when the user toggles between dark and light themes. Mermaid JS is loaded from CDN -- no additional dependencies or build steps are required.
+
+### Images
+
+Standard Markdown images are automatically enhanced during the build:
+
+- **Standalone images** (the only content in a paragraph) are wrapped in a `<figure>` element. The alt text becomes a `<figcaption>` below the image.
+- **Inline images** (mixed with text in the same paragraph) are left inline — they are not wrapped in a figure.
+- **Lazy loading** — All images receive `loading="lazy"` for deferred off-screen loading.
+- **Lightbox** — Click any image in the documentation content to view it in a fullscreen overlay. Press `Escape` or click outside the image to close.
+
+```markdown
+<!-- Standalone: rendered as <figure> with caption -->
+![Architecture overview](images/architecture.png)
+
+<!-- Inline: not wrapped, just lazy-loaded -->
+Check the icon ![icon](images/check.png) for details.
+```
+
+### Videos
+
+Paste a video URL on its own line (no surrounding text, no Markdown link syntax) and it will be automatically converted into an embedded player:
+
+| URL Pattern | Result |
+|-------------|--------|
+| `https://www.youtube.com/watch?v=VIDEO_ID` | YouTube embed (privacy-enhanced) |
+| `https://youtu.be/VIDEO_ID` | YouTube embed (privacy-enhanced) |
+| `https://vimeo.com/VIDEO_ID` | Vimeo embed |
+| `https://example.com/video.mp4` | Native `<video>` element |
+| `https://example.com/video.webm` | Native `<video>` element |
+| `https://example.com/video.ogg` | Native `<video>` element |
+
+```markdown
+<!-- YouTube — just paste the URL on its own line -->
+https://www.youtube.com/watch?v=dQw4w9WgXcQ
+
+<!-- Vimeo -->
+https://vimeo.com/123456789
+
+<!-- Local video file -->
+https://example.com/demo.mp4
+```
+
+All video embeds are wrapped in a responsive 16:9 container with rounded corners. YouTube embeds use the `youtube-nocookie.com` domain for privacy-enhanced mode.
+
+> **Note:** The URL must be on its own line and auto-linked by GFM. Explicit Markdown links like `[Watch this](https://youtube.com/...)` are not converted — they remain as regular links.
 
 ### Site Name Placeholder
 

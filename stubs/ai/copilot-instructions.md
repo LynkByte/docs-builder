@@ -15,7 +15,7 @@ src/
 │   └── InitDocsCommand.php       # `docs:init` — scaffolds starter files
 ├── DocsBuilder.php               # Core orchestrator — coordinates the entire build pipeline
 ├── DocsBuilderServiceProvider.php # Auto-discovered service provider
-├── MarkdownParser.php            # Markdown → HTML (CommonMark + GFM + syntax highlighting + Mermaid)
+├── MarkdownParser.php            # Markdown → HTML (CommonMark + GFM + syntax highlighting + Mermaid + images + videos)
 ├── OpenApiParser.php             # OpenAPI 3.x YAML → structured endpoint data
 └── SearchIndexBuilder.php        # Builds search-index.json for Fuse.js
 ```

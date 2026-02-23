@@ -149,3 +149,97 @@ it('can parse a string directly', function () {
         ->and($result['headings'])->toHaveCount(1)
         ->and($result['description'])->toBe('World.');
 });
+
+// =========================================================================
+// IMAGE SUPPORT
+// =========================================================================
+
+it('wraps standalone images in a figure element', function () {
+    $result = $this->parser->parseString('![Screenshot](https://example.com/img.png)');
+
+    expect($result['html'])->toContain('<figure class="docs-figure">')
+        ->and($result['html'])->toContain('</figure>')
+        ->and($result['html'])->not->toContain('<p><img');
+});
+
+it('uses alt text as figcaption', function () {
+    $result = $this->parser->parseString('![A beautiful screenshot](https://example.com/img.png)');
+
+    expect($result['html'])->toContain('<figcaption>A beautiful screenshot</figcaption>');
+});
+
+it('omits figcaption when alt text is empty', function () {
+    $result = $this->parser->parseString('![](https://example.com/img.png)');
+
+    expect($result['html'])->toContain('<figure class="docs-figure">')
+        ->and($result['html'])->not->toContain('<figcaption>');
+});
+
+it('does not wrap inline images in a figure', function () {
+    $result = $this->parser->parseString('Here is ![icon](icon.png) an inline image.');
+
+    expect($result['html'])->not->toContain('<figure')
+        ->and($result['html'])->toContain('<p>');
+});
+
+it('adds lazy loading to images', function () {
+    $result = $this->parser->parseString('![Screenshot](https://example.com/img.png)');
+
+    expect($result['html'])->toContain('loading="lazy"');
+});
+
+it('adds lazy loading to inline images', function () {
+    $result = $this->parser->parseString('Text with ![icon](icon.png) inline.');
+
+    expect($result['html'])->toContain('loading="lazy"');
+});
+
+// =========================================================================
+// VIDEO SUPPORT
+// =========================================================================
+
+it('converts youtube url to responsive embed', function () {
+    $result = $this->parser->parseString('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+
+    expect($result['html'])->toContain('<div class="docs-video-wrapper">')
+        ->and($result['html'])->toContain('youtube-nocookie.com/embed/dQw4w9WgXcQ')
+        ->and($result['html'])->toContain('allowfullscreen');
+});
+
+it('converts short youtube url to responsive embed', function () {
+    $result = $this->parser->parseString('https://youtu.be/dQw4w9WgXcQ');
+
+    expect($result['html'])->toContain('<div class="docs-video-wrapper">')
+        ->and($result['html'])->toContain('youtube-nocookie.com/embed/dQw4w9WgXcQ');
+});
+
+it('converts vimeo url to responsive embed', function () {
+    $result = $this->parser->parseString('https://vimeo.com/123456789');
+
+    expect($result['html'])->toContain('<div class="docs-video-wrapper">')
+        ->and($result['html'])->toContain('player.vimeo.com/video/123456789')
+        ->and($result['html'])->toContain('allowfullscreen');
+});
+
+it('converts video file url to html5 video element', function () {
+    $result = $this->parser->parseString('https://example.com/demo.mp4');
+
+    expect($result['html'])->toContain('<div class="docs-video-wrapper">')
+        ->and($result['html'])->toContain('<video src="https://example.com/demo.mp4"')
+        ->and($result['html'])->toContain('controls')
+        ->and($result['html'])->toContain('preload="metadata"');
+});
+
+it('does not convert video url with surrounding text', function () {
+    $result = $this->parser->parseString('Check out https://www.youtube.com/watch?v=dQw4w9WgXcQ for more.');
+
+    expect($result['html'])->not->toContain('docs-video-wrapper')
+        ->and($result['html'])->toContain('<a href=');
+});
+
+it('does not convert non-video urls to embeds', function () {
+    $result = $this->parser->parseString('https://example.com/page');
+
+    expect($result['html'])->not->toContain('docs-video-wrapper')
+        ->and($result['html'])->toContain('<a href=');
+});
