@@ -50,7 +50,7 @@ class InitDocsCommand extends Command
         ];
 
         $starterFiles = ['docs/README.md'];
-        if (in_array('api_reference', $features)) {
+        if (in_array('api_reference', $features, true)) {
             $starterFiles[] = 'docs/openapi.yaml';
         }
         $bullets[] = 'Starter files: '.implode(', ', $starterFiles);
@@ -105,7 +105,7 @@ class InitDocsCommand extends Command
             'README.md' => 'README.md',
         ];
 
-        if (in_array('api_reference', $features)) {
+        if (in_array('api_reference', $features, true)) {
             $stubs['openapi.yaml'] = 'openapi.yaml';
         }
 
@@ -177,8 +177,8 @@ class InitDocsCommand extends Command
      */
     private function tailorConfig(string $configPath, array $features): void
     {
-        $hasApi = in_array('api_reference', $features);
-        $hasExamples = in_array('examples', $features);
+        $hasApi = in_array('api_reference', $features, true);
+        $hasExamples = in_array('examples', $features, true);
 
         // Nothing to change when all features are selected
         if ($hasApi && $hasExamples) {
@@ -196,11 +196,15 @@ class InitDocsCommand extends Command
             );
 
             // Replace api_tag_icons array with an empty array
-            $content = preg_replace(
+            $result = preg_replace(
                 "/('api_tag_icons' => )\[.*?\],/s",
                 "'api_tag_icons' => [],",
                 $content,
             );
+
+            if ($result !== null) {
+                $content = $result;
+            }
         }
 
         // --- Header Navigation ---

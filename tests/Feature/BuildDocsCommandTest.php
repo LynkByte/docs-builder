@@ -87,10 +87,12 @@ it('parses the OpenAPI spec only once during build', function () {
 it('shows all tabs when header_nav is null', function () {
     $this->artisan('docs:build', ['--skip-assets' => true]);
 
+    expect(file_exists($this->outputDir.'/index.html'))->toBeTrue();
+
     $html = file_get_contents($this->outputDir.'/index.html');
 
-    expect($html)->toContain('API Reference')
-        ->and($html)->toContain('Examples');
+    expect($html)->toContain('API Reference</p>')
+        ->and($html)->toContain('Examples</p>');
 });
 
 it('hides API Reference tab when header_nav excludes it', function () {
@@ -100,6 +102,8 @@ it('hides API Reference tab when header_nav excludes it', function () {
     ]);
 
     $this->artisan('docs:build', ['--skip-assets' => true]);
+
+    expect(file_exists($this->outputDir.'/index.html'))->toBeTrue();
 
     $html = file_get_contents($this->outputDir.'/index.html');
 
@@ -117,6 +121,8 @@ it('hides Examples tab when header_nav excludes it', function () {
 
     $this->artisan('docs:build', ['--skip-assets' => true]);
 
+    expect(file_exists($this->outputDir.'/index.html'))->toBeTrue();
+
     $html = file_get_contents($this->outputDir.'/index.html');
 
     expect($html)->toContain('Guide</p>')
@@ -130,6 +136,8 @@ it('hides both API Reference and Examples tabs when header_nav has only Guides',
     ]);
 
     $this->artisan('docs:build', ['--skip-assets' => true]);
+
+    expect(file_exists($this->outputDir.'/index.html'))->toBeTrue();
 
     $html = file_get_contents($this->outputDir.'/index.html');
 
