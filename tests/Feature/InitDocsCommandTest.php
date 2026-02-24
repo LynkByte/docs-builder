@@ -74,3 +74,82 @@ it('overwrites existing files with --force', function () {
     expect(file_get_contents($this->docsDir.'/README.md'))->not->toBe('Custom content')
         ->and(file_get_contents($this->docsDir.'/README.md'))->toContain('Welcome');
 });
+
+// --- Feature selection tests ---
+
+it('excludes openapi.yaml when api_reference feature is not selected', function () {
+    $this->artisan('docs:init', ['--features' => 'examples'])
+        ->assertSuccessful();
+
+    expect(file_exists($this->docsDir.'/README.md'))->toBeTrue()
+        ->and(file_exists($this->docsDir.'/openapi.yaml'))->toBeFalse();
+});
+
+it('sets openapi_file to null in config when api_reference is excluded', function () {
+    $this->artisan('docs:init', ['--features' => 'examples']);
+
+    $config = include $this->configPath;
+
+    expect($config['openapi_file'])->toBeNull()
+        ->and($config['api_tag_icons'])->toBe([]);
+});
+
+it('sets explicit header_nav when examples is excluded', function () {
+    $this->artisan('docs:init', ['--features' => 'api_reference']);
+
+    $config = include $this->configPath;
+
+    expect($config['header_nav'])->toBeArray()
+        ->and($config['header_nav'])->toHaveCount(2)
+        ->and(collect($config['header_nav'])->pluck('title')->all())
+        ->toBe(['Guides', 'API Reference']);
+});
+
+it('sets explicit header_nav with only Guides when both features are excluded', function () {
+    $this->artisan('docs:init', ['--features' => '']);
+
+    $config = include $this->configPath;
+
+    expect($config['header_nav'])->toBeArray()
+        ->and($config['header_nav'])->toHaveCount(1)
+        ->and($config['header_nav'][0]['title'])->toBe('Guides');
+});
+
+it('includes all features when --features lists both', function () {
+    $this->artisan('docs:init', ['--features' => 'api_reference,examples']);
+
+    $config = include $this->configPath;
+
+    expect($config['header_nav'])->toBeNull()
+        ->and($config['openapi_file'])->not->toBeNull()
+        ->and(file_exists($this->docsDir.'/openapi.yaml'))->toBeTrue();
+});
+
+it('ignores unknown feature names in --features', function () {
+    $this->artisan('docs:init', ['--features' => 'api_reference,unknown_feature'])
+        ->assertSuccessful();
+
+    // Only api_reference should be recognized; examples is excluded
+    $config = include $this->configPath;
+
+    expect($config['header_nav'])->toBeArray()
+        ->and(collect($config['header_nav'])->pluck('title')->all())
+        ->toBe(['Guides', 'API Reference']);
+});
+
+it('creates only README.md when no features are selected', function () {
+    $this->artisan('docs:init', ['--features' => ''])
+        ->assertSuccessful();
+
+    expect(file_exists($this->docsDir.'/README.md'))->toBeTrue()
+        ->and(file_exists($this->docsDir.'/openapi.yaml'))->toBeFalse();
+});
+
+it('keeps config header_nav null when all features are selected by default', function () {
+    // Without --features, tests select all features (backward-compatible)
+    $this->artisan('docs:init');
+
+    $config = include $this->configPath;
+
+    expect($config['header_nav'])->toBeNull();
+});
