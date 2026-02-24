@@ -32,17 +32,25 @@
             </div>
 
             {{-- Tabs --}}
+            @php
+                $showApiTab = !$headerNav || collect($headerNav)->pluck('title')->contains('API Reference');
+                $showExamplesTab = !$headerNav || collect($headerNav)->pluck('title')->contains('Examples');
+            @endphp
             <div class="mb-10 border-b border-slate-200 dark:border-[#324d67]">
                 <div class="flex gap-8">
                     <a class="flex flex-col items-center justify-center border-b-2 border-[var(--color-primary)] text-[var(--color-primary)] pb-3 pt-2" href="#">
                         <p class="text-sm font-bold tracking-wide">Guide</p>
                     </a>
+                    @if($showApiTab)
                     <a class="flex flex-col items-center justify-center border-b-2 border-transparent text-[var(--docs-text-muted)] hover:text-slate-800 dark:hover:text-white pb-3 pt-2" href="{{ $baseUrl }}/api-reference/index.html">
                         <p class="text-sm font-bold tracking-wide">API Reference</p>
                     </a>
+                    @endif
+                    @if($showExamplesTab)
                     <a class="flex flex-col items-center justify-center border-b-2 border-transparent text-[var(--docs-text-muted)] hover:text-slate-800 dark:hover:text-white pb-3 pt-2" href="#">
                         <p class="text-sm font-bold tracking-wide">Examples</p>
                     </a>
+                    @endif
                 </div>
             </div>
 

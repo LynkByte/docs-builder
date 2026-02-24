@@ -81,3 +81,59 @@ it('parses the OpenAPI spec only once during build', function () {
     $builder = new DocsBuilder($mock);
     $builder->build();
 });
+
+// --- Tab visibility tests ---
+
+it('shows all tabs when header_nav is null', function () {
+    $this->artisan('docs:build', ['--skip-assets' => true]);
+
+    $html = file_get_contents($this->outputDir.'/index.html');
+
+    expect($html)->toContain('API Reference')
+        ->and($html)->toContain('Examples');
+});
+
+it('hides API Reference tab when header_nav excludes it', function () {
+    config()->set('docs-builder.header_nav', [
+        ['title' => 'Guides', 'url' => '/docs/index.html'],
+        ['title' => 'Examples', 'url' => '#'],
+    ]);
+
+    $this->artisan('docs:build', ['--skip-assets' => true]);
+
+    $html = file_get_contents($this->outputDir.'/index.html');
+
+    // The "Guide" tab should always be present
+    expect($html)->toContain('Guide</p>')
+        ->and($html)->toContain('Examples</p>')
+        ->and($html)->not->toContain('API Reference</p>');
+});
+
+it('hides Examples tab when header_nav excludes it', function () {
+    config()->set('docs-builder.header_nav', [
+        ['title' => 'Guides', 'url' => '/docs/index.html'],
+        ['title' => 'API Reference', 'url' => '/docs/api-reference/index.html'],
+    ]);
+
+    $this->artisan('docs:build', ['--skip-assets' => true]);
+
+    $html = file_get_contents($this->outputDir.'/index.html');
+
+    expect($html)->toContain('Guide</p>')
+        ->and($html)->toContain('API Reference</p>')
+        ->and($html)->not->toContain('Examples</p>');
+});
+
+it('hides both API Reference and Examples tabs when header_nav has only Guides', function () {
+    config()->set('docs-builder.header_nav', [
+        ['title' => 'Guides', 'url' => '/docs/index.html'],
+    ]);
+
+    $this->artisan('docs:build', ['--skip-assets' => true]);
+
+    $html = file_get_contents($this->outputDir.'/index.html');
+
+    expect($html)->toContain('Guide</p>')
+        ->and($html)->not->toContain('API Reference</p>')
+        ->and($html)->not->toContain('Examples</p>');
+});
