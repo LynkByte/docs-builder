@@ -20,6 +20,10 @@ You need PHP 8.3+ and Composer installed.
 - OpenAPI support
 - Full-text search
 
+Check the [Installation Guide](installation.md) to get started.
+
+See the [Configuration section](installation.md#configuration) for more details.
+
 ```php
 echo 'Hello World';
 ```

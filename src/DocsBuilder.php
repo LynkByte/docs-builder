@@ -247,6 +247,9 @@ class DocsBuilder
         $parsed['description'] = str_replace('{SiteName}', $this->config['site_name'], $parsed['description']);
         $parsed['plainText'] = str_replace('{SiteName}', $this->config['site_name'], $parsed['plainText']);
 
+        // Rewrite inter-document .md links to proper web URLs
+        $parsed['html'] = $this->postProcessLinks($parsed['html']);
+
         // Determine prev/next pages
         [$prevPage, $nextPage] = $this->getPrevNextPages($page['slug']);
 
@@ -482,5 +485,36 @@ class DocsBuilder
         }
 
         return $this->baseUrl.'/'.$slug.'/index.html';
+    }
+
+    /**
+     * Rewrite inter-document .md links in rendered HTML to proper web URLs.
+     *
+     * Converts relative hrefs like "installation.md" or "README.md#section"
+     * into the correct output paths (e.g. "/docs/installation/index.html#section").
+     * External URLs and non-.md links are left unchanged.
+     */
+    private function postProcessLinks(string $html): string
+    {
+        return preg_replace_callback(
+            '/<a\s([^>]*?)href="([^"]*\.md)(#[^"]*)?"/i',
+            function (array $matches): string {
+                $before = $matches[1];
+                $href = $matches[2];
+                $fragment = $matches[3] ?? '';
+
+                // Skip external / absolute URLs
+                if (preg_match('#^(https?://|//|mailto:|tel:)#i', $href)) {
+                    return $matches[0];
+                }
+
+                // Convert the .md filename to a slug, then to a full URL
+                $slug = $this->fileToSlug($href);
+                $url = $this->slugToUrl($slug);
+
+                return '<a '.$before.'href="'.$url.$fragment.'"';
+            },
+            $html
+        ) ?? $html;
     }
 }

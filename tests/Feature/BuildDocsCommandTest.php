@@ -145,3 +145,27 @@ it('hides both API Reference and Examples tabs when header_nav has only Guides',
         ->and($html)->not->toContain('API Reference</p>')
         ->and($html)->not->toContain('Examples</p>');
 });
+
+// --- Markdown .md link rewriting tests ---
+
+it('rewrites relative .md links to proper web urls', function () {
+    $this->artisan('docs:build', ['--skip-assets' => true]);
+
+    $html = file_get_contents($this->outputDir.'/index.html');
+    $baseUrl = config('docs-builder.base_url');
+
+    // installation.md should become {baseUrl}/installation/index.html
+    expect($html)->toContain('href="'.$baseUrl.'/installation/index.html"')
+        ->and($html)->not->toContain('href="installation.md"');
+});
+
+it('rewrites .md links with fragment anchors', function () {
+    $this->artisan('docs:build', ['--skip-assets' => true]);
+
+    $html = file_get_contents($this->outputDir.'/index.html');
+    $baseUrl = config('docs-builder.base_url');
+
+    // installation.md#configuration should become {baseUrl}/installation/index.html#configuration
+    expect($html)->toContain('href="'.$baseUrl.'/installation/index.html#configuration"')
+        ->and($html)->not->toContain('href="installation.md#configuration"');
+});
