@@ -3,7 +3,7 @@
 
 ## Project Overview
 
-This is **lynkbyte/docs-builder**, a Laravel package that compiles Markdown files and OpenAPI 3.x YAML specs into a static documentation site. It targets PHP 8.3+ and Laravel 11.x/12.x.
+This is **lynkbyte/docs-builder**, a Laravel package that compiles Markdown files and OpenAPI 3.x YAML specs into a static documentation site. It targets PHP 8.3+ and Laravel 11.x/12.x/13.x.
 
 ## Architecture Map
 
