@@ -5,7 +5,7 @@
 
 ## Overview
 
-Docs Builder is a Laravel package (PHP 8.3+, Laravel 11.x/12.x) that takes Markdown files and an optional OpenAPI YAML spec from a `docs/` directory and generates a complete static documentation website in `public/docs/`. It provides server-side syntax highlighting, Mermaid diagram rendering, client-side full-text search (Fuse.js), dark/light theme toggle, a responsive 3-column layout, and an interactive API reference with "Try it out" panels. No Node.js or frontend build step is required — pre-compiled CSS and JS ship with the package.
+Docs Builder is a Laravel package (PHP 8.3+, Laravel 11.x/12.x/13.x) that takes Markdown files and an optional OpenAPI YAML spec from a `docs/` directory and generates a complete static documentation website in `public/docs/`. It provides server-side syntax highlighting, Mermaid diagram rendering, client-side full-text search (Fuse.js), dark/light theme toggle, a responsive 3-column layout, and an interactive API reference with "Try it out" panels. No Node.js or frontend build step is required — pre-compiled CSS and JS ship with the package.
 
 ## Quick Start
 
