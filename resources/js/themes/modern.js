@@ -24,9 +24,11 @@ import Fuse from 'fuse.js';
         return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     }
 
-    function applyTheme(theme) {
+    function applyTheme(theme, persist = false) {
         document.documentElement.classList.toggle('dark', theme === 'dark');
-        localStorage.setItem(THEME_KEY, theme);
+        if (persist) {
+            localStorage.setItem(THEME_KEY, theme);
+        }
         updateThemeToggleIcons(theme);
         reRenderMermaidDiagrams(theme);
     }
@@ -43,18 +45,18 @@ import Fuse from 'fuse.js';
     }
 
     function initThemeToggle() {
-        applyTheme(getPreferredTheme());
+        applyTheme(getPreferredTheme(), false);
 
         document.querySelectorAll('[data-theme-toggle]').forEach(btn => {
             btn.addEventListener('click', () => {
                 const current = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
-                applyTheme(current === 'dark' ? 'light' : 'dark');
+                applyTheme(current === 'dark' ? 'light' : 'dark', true);
             });
         });
 
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
             if (!localStorage.getItem(THEME_KEY)) {
-                applyTheme(e.matches ? 'dark' : 'light');
+                applyTheme(e.matches ? 'dark' : 'light', false);
             }
         });
     }
@@ -258,6 +260,12 @@ import Fuse from 'fuse.js';
                 includeMatches: true,
                 minMatchCharLength: 2,
             });
+
+            // Replay the current query if the user typed while the index was loading
+            const searchInput = document.getElementById('docs-search-input');
+            if (searchInput && searchInput.value.length >= 2) {
+                performSearch(searchInput.value);
+            }
         } catch (e) {
             console.warn('Failed to load search index:', e);
         }

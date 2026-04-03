@@ -17,8 +17,10 @@
                     @endif
                     @if($loop->last)
                         <span class="text-[13px] font-medium text-[var(--docs-text)]">{{ $crumb['title'] }}</span>
-                    @else
+                    @elseif(!empty($crumb['url']))
                         <a class="text-[13px] text-[var(--docs-text-muted)] hover:text-[var(--color-primary)] transition-colors" href="{{ $crumb['url'] }}">{{ $crumb['title'] }}</a>
+                    @else
+                        <span class="text-[13px] text-[var(--docs-text-muted)]">{{ $crumb['title'] }}</span>
                     @endif
                 @endforeach
             </nav>

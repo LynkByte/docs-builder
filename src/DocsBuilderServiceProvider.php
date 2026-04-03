@@ -25,6 +25,8 @@ class DocsBuilderServiceProvider extends ServiceProvider
             $themePath = __DIR__.'/../resources/views/themes/'.$themeName;
             if (is_dir($themePath)) {
                 $this->app['view']->prependNamespace('docs-builder', $themePath);
+            } else {
+                Log::warning("DocsBuilder: configured theme '{$themeName}' directory not found at [{$themePath}]. Falling back to default theme.");
             }
         }
 

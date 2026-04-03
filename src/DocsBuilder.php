@@ -331,6 +331,7 @@ class DocsBuilder
             'apiEndpoints' => $apiEndpoints,
             'tagIcons' => $apiData['tagIcons'] ?? [],
             'apiVersion' => $apiData['info']['version'] ?? 'v1',
+            'apiServerUrl' => $apiData['serverUrl'] ?? '',
             // No endpoint-specific data (this is the overview)
             'endpointMethod' => null,
             'endpointPath' => null,
@@ -383,6 +384,7 @@ class DocsBuilder
                     'apiEndpoints' => $apiEndpoints,
                     'tagIcons' => $apiData['tagIcons'],
                     'apiVersion' => $apiData['info']['version'] ?? 'v1',
+                    'apiServerUrl' => $apiData['serverUrl'] ?? '',
                     'endpointMethod' => $endpoint['method'],
                     'endpointPath' => $endpoint['path'],
                     'parameters' => $endpoint['parameters'],

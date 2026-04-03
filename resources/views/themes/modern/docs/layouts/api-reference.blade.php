@@ -70,8 +70,10 @@
                     @endif
                     @if($loop->last)
                         <span class="font-medium text-[var(--docs-text)]">{{ $crumb['title'] }}</span>
-                    @else
+                    @elseif(!empty($crumb['url']))
                         <a class="text-[var(--docs-text-muted)] hover:text-[var(--color-primary)] transition-colors" href="{{ $crumb['url'] }}">{{ $crumb['title'] }}</a>
+                    @else
+                        <span class="text-[var(--docs-text-muted)]">{{ $crumb['title'] }}</span>
                     @endif
                 @endforeach
             </nav>
@@ -102,43 +104,57 @@
             <article class="docs-content">
                 {!! $content !!}
 
-                {{-- Parameters Table --}}
+                {{-- Parameters Tables (grouped by location) --}}
                 @if(!empty($parameters))
-                <div class="mb-10">
-                    <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
-                        Request Body
-                        <span class="text-[11px] font-medium text-[var(--docs-text-muted)] px-2 py-0.5 border border-[var(--docs-border)] rounded">application/json</span>
-                    </h3>
-                    <div class="docs-table-wrapper">
-                        <table class="w-full text-left text-sm">
-                            <thead>
-                                <tr>
-                                    <th>Parameter</th>
-                                    <th>Type</th>
-                                    <th>Description</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach($parameters as $param)
-                                <tr>
-                                    <td>
-                                        <div class="flex flex-col gap-0.5">
-                                            <span class="font-mono font-semibold text-[var(--docs-text)] text-[13px]">{{ $param['name'] }}</span>
-                                            @if($param['required'] ?? false)
-                                            <span class="text-[10px] font-bold text-red-500 uppercase tracking-wider">Required</span>
-                                            @endif
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <span class="px-2 py-0.5 bg-[var(--docs-bg-secondary)] rounded text-[var(--docs-text-muted)] font-mono text-xs">{{ $param['type'] }}</span>
-                                    </td>
-                                    <td class="text-[var(--docs-text-secondary)]">{{ $param['description'] ?? '' }}</td>
-                                </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
+                @php
+                    $paramGroups = collect($parameters)->groupBy('in');
+                    $groupLabels = [
+                        'path' => ['title' => 'Path Parameters', 'badge' => null],
+                        'query' => ['title' => 'Query Parameters', 'badge' => null],
+                        'body' => ['title' => 'Request Body', 'badge' => 'application/json'],
+                    ];
+                @endphp
+                @foreach(['path', 'query', 'body'] as $location)
+                    @if($paramGroups->has($location))
+                    <div class="mb-10">
+                        <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
+                            {{ $groupLabels[$location]['title'] }}
+                            @if($groupLabels[$location]['badge'])
+                            <span class="text-[11px] font-medium text-[var(--docs-text-muted)] px-2 py-0.5 border border-[var(--docs-border)] rounded">{{ $groupLabels[$location]['badge'] }}</span>
+                            @endif
+                        </h3>
+                        <div class="docs-table-wrapper">
+                            <table class="w-full text-left text-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Parameter</th>
+                                        <th>Type</th>
+                                        <th>Description</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($paramGroups[$location] as $param)
+                                    <tr>
+                                        <td>
+                                            <div class="flex flex-col gap-0.5">
+                                                <span class="font-mono font-semibold text-[var(--docs-text)] text-[13px]">{{ $param['name'] }}</span>
+                                                @if($param['required'] ?? false)
+                                                <span class="text-[10px] font-bold text-red-500 uppercase tracking-wider">Required</span>
+                                                @endif
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="px-2 py-0.5 bg-[var(--docs-bg-secondary)] rounded text-[var(--docs-text-muted)] font-mono text-xs">{{ $param['type'] }}</span>
+                                        </td>
+                                        <td class="text-[var(--docs-text-secondary)]">{{ $param['description'] ?? '' }}</td>
+                                    </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
-                </div>
+                    @endif
+                @endforeach
                 @endif
 
                 {{-- Responses --}}
@@ -188,13 +204,14 @@
                     </button>
                     <div class="docs-code-block space-y-1" style="border: none; margin: 0; box-shadow: none; background: transparent;">
                         <code class="text-[var(--color-code-text)]">
+                            @php $bodyParams = collect($parameters)->where('in', 'body'); @endphp
                             <div><span class="text-[var(--color-primary-light)]">curl</span> --request {{ strtoupper($endpointMethod) }} \</div>
-                            <div class="pl-4">--url http://localhost:8000/api/v1{{ $endpointPath }} \</div>
+                            <div class="pl-4">--url {{ rtrim($apiServerUrl ?? 'http://localhost:8000/api/v1', '/') }}{{ $endpointPath }} \</div>
                             <div class="pl-4">--header <span class="text-green-400">'Authorization: Bearer &lt;TOKEN&gt;'</span> \</div>
-                            <div class="pl-4">--header <span class="text-green-400">'Content-Type: application/json'</span>@if(!empty($parameters)) \@endif</div>
-                            @if(!empty($parameters))
+                            <div class="pl-4">--header <span class="text-green-400">'Content-Type: application/json'</span>@if($bodyParams->isNotEmpty()) \@endif</div>
+                            @if($bodyParams->isNotEmpty())
                             <div class="pl-4">--data <span class="text-[var(--color-primary-light)]">'{</span></div>
-                            @foreach($parameters as $i => $param)
+                            @foreach($bodyParams as $param)
                             <div class="pl-8 text-[var(--color-primary-light)]">"{{ $param['name'] }}": "{{ $param['example'] ?? '' }}"{{ !$loop->last ? ',' : '' }}</div>
                             @endforeach
                             <div class="pl-4 text-[var(--color-primary-light)]">}'</div>
@@ -205,11 +222,12 @@
             </div>
 
             <div class="space-y-5">
-                @if(!empty($parameters))
+                @php $bodyParamsForForm = collect($parameters)->where('in', 'body'); @endphp
+                @if($bodyParamsForForm->isNotEmpty())
                 <div>
                     <span class="text-[11px] font-bold uppercase tracking-widest text-[var(--docs-text-muted)] mb-2.5 block">Body Parameters</span>
                     <div class="space-y-2.5">
-                        @foreach($parameters as $param)
+                        @foreach($bodyParamsForForm as $param)
                         <div>
                             <label class="block text-[10px] font-bold text-[var(--docs-text-muted)] mb-1 uppercase tracking-wider">{{ $param['name'] }}</label>
                             <input type="text" class="w-full text-xs py-2 px-3" value="{{ $param['example'] ?? '' }}" placeholder="{{ $param['description'] ?? '' }}">

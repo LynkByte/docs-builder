@@ -264,7 +264,9 @@ class BuildDocsCommand extends Command
      * Resolve the Vite manifest entry key for a docs asset.
      *
      * Checks for published source files (resources/css/docs.css) first,
-     * then falls back to the vendor package path.
+     * then falls back to the vendor package path, and finally attempts
+     * to match by entry name (e.g. 'docs-css', 'themes/modern') since
+     * the host app's Vite config may use custom entry names as keys.
      */
     private function resolveViteEntryKey(array $manifest, string $relativePath): ?string
     {
@@ -280,7 +282,43 @@ class BuildDocsCommand extends Command
             return $vendorKey;
         }
 
+        // Match by entry name — the host app's vite.config may use named entries
+        // (e.g. 'docs-css' for 'resources/css/docs.css', 'themes/modern' for
+        // 'resources/js/themes/modern.js'). Derive candidate names from the path.
+        $candidateNames = $this->deriveEntryNames($relativePath);
+        foreach ($candidateNames as $name) {
+            if (isset($manifest[$name])) {
+                return $name;
+            }
+        }
+
         return null;
+    }
+
+    /**
+     * Derive possible Vite entry names from a relative asset path.
+     *
+     * For example, 'css/docs.css' yields ['docs-css'], and
+     * 'js/themes/modern.js' yields ['themes/modern', 'themes/modern-js'].
+     *
+     * @return array<int, string>
+     */
+    private function deriveEntryNames(string $relativePath): array
+    {
+        $withoutExt = preg_replace('/\.[^.]+$/', '', $relativePath);
+        $ext = pathinfo($relativePath, PATHINFO_EXTENSION);
+
+        // Strip leading 'css/' or 'js/' prefix
+        $stripped = preg_replace('#^(css|js)/#', '', $withoutExt);
+
+        $names = [$stripped];
+
+        // Also try appending the extension as a suffix (e.g. 'docs-css')
+        if ($ext && ! str_ends_with($stripped, '-'.$ext)) {
+            $names[] = $stripped.'-'.$ext;
+        }
+
+        return $names;
     }
 
     /**

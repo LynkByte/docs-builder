@@ -11,14 +11,17 @@
             @endforeach
         </nav>
 
-        {{-- Help Card --}}
+        {{-- Help Card — only shown when a support URL is configured --}}
+        @php $supportUrl = config('docs-builder.support_url'); @endphp
+        @if(!empty($supportUrl))
         <div class="mt-10 p-4 rounded-xl bg-[var(--docs-sidebar-active-bg)] border border-[var(--color-primary)]/10">
             <p class="text-xs font-bold text-[var(--color-primary)] mb-1.5">Need help?</p>
             <p class="text-xs text-[var(--docs-text-muted)] leading-relaxed mb-3">Can't find what you're looking for?</p>
-            <a href="#" class="block w-full py-2 bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white rounded-lg text-xs font-semibold transition-colors text-center">
+            <a href="{{ $supportUrl }}" class="block w-full py-2 bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white rounded-lg text-xs font-semibold transition-colors text-center">
                 Contact Support
             </a>
         </div>
+        @endif
     </div>
 </aside>
 @endif

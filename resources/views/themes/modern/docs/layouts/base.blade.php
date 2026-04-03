@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="docs-base-url" content="{{ $baseUrl }}">
     <title>{{ $pageTitle ? $pageTitle . ' - ' : '' }}{{ $siteName }}</title>
-    <meta name="description" content="{{ $siteDescription }}">
+    <meta name="description" content="{{ !empty($pageDescription) ? $pageDescription : $siteDescription }}">
 
     {{-- Preconnect for performance --}}
     @if(!empty($fonts) && $fonts !== false)

@@ -1,5 +1,5 @@
 {{-- Modern Theme — Search Command Palette Modal --}}
-<div id="docs-search-modal" class="fixed inset-0 z-[100] hidden">
+<div id="docs-search-modal" class="fixed inset-0 z-[100] hidden" role="dialog" aria-modal="true" aria-label="Search documentation">
     {{-- Overlay --}}
     <div class="docs-search-overlay fixed inset-0"></div>
 
@@ -16,6 +16,7 @@
                         class="w-full bg-transparent border-none focus:ring-0 text-[var(--docs-text)] text-[15px] placeholder-[var(--docs-text-muted)] font-medium p-0 outline-none"
                         placeholder="Search documentation..."
                         autocomplete="off"
+                        aria-label="Search documentation"
                     >
                 </div>
             </div>
