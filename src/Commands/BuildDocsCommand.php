@@ -94,6 +94,7 @@ class BuildDocsCommand extends Command
             }
 
             $distDir = $this->packageDistPath();
+            $themeName = config('docs-builder.theme_name', 'default');
 
             if (! is_dir($distDir)) {
                 throw new \RuntimeException(
@@ -102,8 +103,18 @@ class BuildDocsCommand extends Command
                 );
             }
 
-            $cssSource = $distDir.'/docs-css.css';
-            $jsSource = $distDir.'/docs.js';
+            // Resolve CSS and JS sources based on the active theme
+            if ($themeName !== 'default' && file_exists($distDir.'/themes/'.$themeName.'-css.css')) {
+                $cssSource = $distDir.'/themes/'.$themeName.'-css.css';
+            } else {
+                $cssSource = $distDir.'/docs-css.css';
+            }
+
+            if ($themeName !== 'default' && file_exists($distDir.'/themes/'.$themeName.'.js')) {
+                $jsSource = $distDir.'/themes/'.$themeName.'.js';
+            } else {
+                $jsSource = $distDir.'/docs.js';
+            }
 
             if (file_exists($cssSource)) {
                 copy($cssSource, $assetsDir.'/docs.css');
@@ -111,6 +122,29 @@ class BuildDocsCommand extends Command
 
             if (file_exists($jsSource)) {
                 copy($jsSource, $assetsDir.'/docs.js');
+            }
+
+            // Copy shared JS chunks (e.g. fuse.js) that entry points import.
+            // Theme JS in dist/themes/ imports these via "../<chunk>.js", so we
+            // rewrite any "../" import prefixes to "./" since all assets are
+            // flattened into the same output directory.
+            foreach (glob($distDir.'/*.js') as $chunkFile) {
+                $basename = basename($chunkFile);
+                if ($basename === 'docs.js') {
+                    continue; // Already handled above
+                }
+                copy($chunkFile, $assetsDir.'/'.$basename);
+            }
+
+            // Fix relative import paths in docs.js when sourced from a theme
+            // subdirectory (e.g. "../fuse.js" → "./fuse.js")
+            $docsJsPath = $assetsDir.'/docs.js';
+            if ($themeName !== 'default' && file_exists($docsJsPath)) {
+                $content = file_get_contents($docsJsPath);
+                $fixed = preg_replace('/from\s*"\.\.\/([^"]+)"/', 'from"./$1"', $content);
+                if ($fixed !== $content) {
+                    file_put_contents($docsJsPath, $fixed);
+                }
             }
         });
     }
@@ -136,6 +170,10 @@ class BuildDocsCommand extends Command
 
     /**
      * Copy compiled Vite assets (docs.css, docs.js) to the docs output.
+     *
+     * When a non-default theme is active, looks for theme-specific manifest
+     * entries first (e.g. css/themes/modern.css), falling back to the default
+     * entries if not found.
      */
     private function copyViteAssets(string $assetsDir): void
     {
@@ -150,10 +188,19 @@ class BuildDocsCommand extends Command
         }
 
         $manifest = json_decode(file_get_contents($manifestPath), true);
+        $themeName = config('docs-builder.theme_name', 'default');
 
-        // Auto-detect published source files or fall back to vendor paths
-        $cssKey = $this->resolveViteEntryKey($manifest, 'css/docs.css');
-        $jsKey = $this->resolveViteEntryKey($manifest, 'js/docs.js');
+        // Resolve theme-specific entries first, falling back to default
+        $cssKey = null;
+        $jsKey = null;
+
+        if ($themeName !== 'default') {
+            $cssKey = $this->resolveViteEntryKey($manifest, 'css/themes/'.$themeName.'.css');
+            $jsKey = $this->resolveViteEntryKey($manifest, 'js/themes/'.$themeName.'.js');
+        }
+
+        $cssKey = $cssKey ?? $this->resolveViteEntryKey($manifest, 'css/docs.css');
+        $jsKey = $jsKey ?? $this->resolveViteEntryKey($manifest, 'js/docs.js');
 
         // Find and copy docs.css
         $cssEntry = $cssKey ? ($manifest[$cssKey] ?? null) : null;
@@ -184,6 +231,31 @@ class BuildDocsCommand extends Command
                         FILE_APPEND
                     );
                 }
+            }
+        }
+
+        // Copy shared JS chunks imported by the entry point (e.g. fuse.js)
+        if ($jsEntry && isset($jsEntry['imports'])) {
+            foreach ($jsEntry['imports'] as $importKey) {
+                $importEntry = $manifest[$importKey] ?? null;
+                if ($importEntry && isset($importEntry['file'])) {
+                    $chunkSource = public_path('build/'.$importEntry['file']);
+                    $chunkBasename = basename($importEntry['file']);
+                    if (file_exists($chunkSource)) {
+                        copy($chunkSource, $assetsDir.'/'.$chunkBasename);
+                    }
+                }
+            }
+        }
+
+        // Fix relative import paths in docs.js when sourced from a theme
+        // subdirectory (e.g. "../fuse.js" → "./fuse.js")
+        $docsJsPath = $assetsDir.'/docs.js';
+        if ($themeName !== 'default' && file_exists($docsJsPath)) {
+            $content = file_get_contents($docsJsPath);
+            $fixed = preg_replace('/from\s*"\.\.\/([^"]+)"/', 'from"./$1"', $content);
+            if ($fixed !== $content) {
+                file_put_contents($docsJsPath, $fixed);
             }
         }
     }

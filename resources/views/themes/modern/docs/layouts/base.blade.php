@@ -7,7 +7,7 @@
     <title>{{ $pageTitle ? $pageTitle . ' - ' : '' }}{{ $siteName }}</title>
     <meta name="description" content="{{ $siteDescription }}">
 
-    {{-- Fonts --}}
+    {{-- Preconnect for performance --}}
     @if(!empty($fonts) && $fonts !== false)
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -30,7 +30,7 @@
     {{-- Compiled CSS --}}
     <link rel="stylesheet" href="{{ $baseUrl }}/assets/docs.css">
 
-    {{-- Prevent FOUC --}}
+    {{-- Prevent FOUC — apply dark class before render --}}
     <script>
         (function() {
             var theme = localStorage.getItem('devdocs-theme');
@@ -43,11 +43,14 @@
         })();
     </script>
 </head>
-<body class="bg-[var(--docs-bg)] text-[var(--docs-text)] min-h-screen font-sans">
+<body class="bg-[var(--docs-bg)] text-[var(--docs-text)] min-h-screen font-sans antialiased">
+
+    {{-- Skip to main content (accessibility) --}}
+    <a href="#main-content" class="docs-skip-link">Skip to content</a>
 
     @include('docs-builder::docs.partials.header')
 
-    <div class="max-w-[1440px] mx-auto flex">
+    <div class="max-w-[1400px] mx-auto flex min-h-[calc(100vh-64px)]">
         @yield('body')
     </div>
 
