@@ -13,7 +13,7 @@ A Laravel package that compiles Markdown files and OpenAPI 3.x YAML specificatio
 
 - **Markdown with GFM** — Tables, task lists, strikethrough, and all GitHub Flavored Markdown extensions
 - **Server-side syntax highlighting** — 15+ languages via [Tempest Highlight](https://github.com/tempestphp/highlight), with styled code blocks, language labels, and copy-to-clipboard buttons
-- **Mermaid diagrams** — Render flowcharts, sequence diagrams, ERDs, and more using fenced `mermaid` code blocks, with automatic dark/light theme support
+- **Mermaid diagrams** — Render flowcharts, sequence diagrams, ERDs, and more using fenced `mermaid` code blocks, with automatic dark/light theme support, zoom in/out, pan (drag-to-scroll), and fullscreen
 - **Image support** — Standalone images are wrapped in `<figure>` with alt-text captions, click-to-zoom lightbox overlay, and lazy loading for all images
 - **Video embeds** — YouTube and Vimeo URLs are auto-embedded as privacy-enhanced iframes; local `.mp4`/`.webm`/`.ogg` URLs render as native `<video>` elements with responsive 16:9 containers
 - **OpenAPI 3.x API reference** — Auto-generates endpoint pages from your YAML spec with parameters, responses, and an interactive "Try it out" panel
@@ -316,7 +316,7 @@ graph TD
 ```
 ````
 
-Diagrams automatically adapt when the user toggles between dark and light themes. Mermaid JS is loaded from CDN -- no additional dependencies or build steps are required.
+Diagrams automatically adapt when the user toggles between dark and light themes. Each diagram includes a toolbar with zoom in/out, reset, pan (drag-to-scroll), and fullscreen controls. Pan is enabled by default when diagrams are zoomed, allowing click-and-drag navigation. Mermaid JS is loaded from CDN -- no additional dependencies or build steps are required.
 
 ### Images
 

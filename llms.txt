@@ -29,7 +29,7 @@ View the output at `public/docs/index.html` or `/docs` in your running app.
 
 - Markdown to HTML with GitHub Flavored Markdown (tables, task lists, strikethrough)
 - Server-side syntax highlighting for 15+ languages via Tempest Highlight
-- Mermaid diagram rendering (flowcharts, sequence diagrams, ERDs, etc.)
+- Mermaid diagram rendering (flowcharts, sequence diagrams, ERDs, etc.) with zoom, pan, and fullscreen
 - Image enhancement (figure/caption wrapping, click-to-zoom lightbox, lazy loading)
 - Video embeds (YouTube/Vimeo auto-embed as privacy-enhanced iframes, native `<video>` for .mp4/.webm/.ogg)
 - OpenAPI 3.x API reference generation with individual endpoint pages

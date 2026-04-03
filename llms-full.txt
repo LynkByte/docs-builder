@@ -474,7 +474,7 @@ Code blocks render with:
 
 **Mermaid diagrams:**
 
-Fenced code blocks with language `mermaid` are converted into interactive diagram containers with zoom in/out, reset, and fullscreen toolbar buttons. Mermaid JS is loaded from CDN at runtime.
+Fenced code blocks with language `mermaid` are converted into interactive diagram containers with zoom in/out, reset, pan (drag-to-scroll), and fullscreen toolbar buttons. Pan is enabled by default when zoomed. Mermaid JS is loaded from CDN at runtime.
 
 ### `LynkByte\DocsBuilder\OpenApiParser`
 
