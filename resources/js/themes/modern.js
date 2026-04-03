@@ -122,17 +122,78 @@ import Fuse from 'fuse.js';
     const MERMAID_MAX_SCALE = 3;
     const MERMAID_SCALE_STEP = 0.25;
 
+    function attachPanHandlers(scrollableEl, panBtn) {
+        let isPanEnabled = true;
+        let isDragging = false;
+        let startX, startY, scrollL, scrollT;
+
+        function updatePanState(enabled) {
+            isPanEnabled = enabled;
+            scrollableEl.classList.toggle('is-pan-enabled', enabled);
+            if (panBtn) panBtn.classList.toggle('is-active', enabled);
+        }
+
+        updatePanState(true);
+
+        if (panBtn) {
+            panBtn.addEventListener('click', () => {
+                updatePanState(!isPanEnabled);
+            });
+        }
+
+        scrollableEl.addEventListener('mousedown', (e) => {
+            if (!isPanEnabled || e.target.closest('button')) return;
+            isDragging = true;
+            scrollableEl.classList.add('is-panning');
+            startX = e.pageX;
+            startY = e.pageY;
+            scrollL = scrollableEl.scrollLeft;
+            scrollT = scrollableEl.scrollTop;
+            e.preventDefault();
+        });
+
+        scrollableEl.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            e.preventDefault();
+            scrollableEl.scrollLeft = scrollL - (e.pageX - startX);
+            scrollableEl.scrollTop = scrollT - (e.pageY - startY);
+        });
+
+        scrollableEl.addEventListener('mouseup', () => {
+            isDragging = false;
+            scrollableEl.classList.remove('is-panning');
+        });
+
+        scrollableEl.addEventListener('mouseleave', () => {
+            isDragging = false;
+            scrollableEl.classList.remove('is-panning');
+        });
+    }
+
     function initMermaidControls() {
         document.querySelectorAll('.docs-mermaid-block').forEach(block => {
             let scale = 1;
             const content = block.querySelector('.docs-mermaid-content');
             if (!content) return;
 
+            let naturalW = 0, naturalH = 0;
+
             function applyZoom() {
                 const pre = content.querySelector('pre.mermaid');
                 if (!pre) return;
+                if (!naturalW) {
+                    naturalW = pre.scrollWidth || pre.offsetWidth;
+                    naturalH = pre.scrollHeight || pre.offsetHeight;
+                }
                 pre.style.transform = `scale(${scale})`;
-                pre.style.transformOrigin = 'center top';
+                pre.style.transformOrigin = 'top left';
+                if (scale !== 1 && naturalW) {
+                    pre.style.minWidth = (naturalW * scale) + 'px';
+                    pre.style.minHeight = (naturalH * scale) + 'px';
+                } else {
+                    pre.style.minWidth = '';
+                    pre.style.minHeight = '';
+                }
                 content.classList.toggle('is-zoomed', scale !== 1);
             }
 
@@ -169,6 +230,9 @@ import Fuse from 'fuse.js';
                     openMermaidFullscreen(block);
                 });
             }
+
+            const panBtn = block.querySelector('[data-mermaid-pan]');
+            attachPanHandlers(content, panBtn);
         });
     }
 
@@ -187,20 +251,37 @@ import Fuse from 'fuse.js';
             '<button data-fs-zoom-in title="Zoom in"><span class="material-symbols-outlined">zoom_in</span></button>' +
             '<button data-fs-zoom-out title="Zoom out"><span class="material-symbols-outlined">zoom_out</span></button>' +
             '<button data-fs-reset title="Reset zoom"><span class="material-symbols-outlined">fit_screen</span></button>' +
+            '<button data-fs-pan title="Toggle pan" class="is-active"><span class="material-symbols-outlined">drag_pan</span></button>' +
             '<button data-fs-close title="Close"><span class="material-symbols-outlined">close</span></button>';
 
         const container = document.createElement('div');
         container.className = 'docs-mermaid-fullscreen-content';
-        container.innerHTML = pre.innerHTML;
+        const wrapper = document.createElement('div');
+        wrapper.className = 'docs-mermaid-fullscreen-wrapper';
+        wrapper.innerHTML = pre.innerHTML;
+        container.appendChild(wrapper);
 
         overlay.appendChild(toolbar);
         overlay.appendChild(container);
         document.body.appendChild(overlay);
         document.body.style.overflow = 'hidden';
 
+        let naturalW = 0, naturalH = 0;
+
         function applyFullscreenZoom() {
-            container.style.transform = `scale(${scale})`;
-            container.style.transformOrigin = 'center top';
+            if (!naturalW) {
+                naturalW = wrapper.scrollWidth || wrapper.offsetWidth;
+                naturalH = wrapper.scrollHeight || wrapper.offsetHeight;
+            }
+            wrapper.style.transform = `scale(${scale})`;
+            wrapper.style.transformOrigin = 'top left';
+            if (scale !== 1 && naturalW) {
+                wrapper.style.minWidth = (naturalW * scale) + 'px';
+                wrapper.style.minHeight = (naturalH * scale) + 'px';
+            } else {
+                wrapper.style.minWidth = '';
+                wrapper.style.minHeight = '';
+            }
         }
 
         toolbar.querySelector('[data-fs-zoom-in]').addEventListener('click', () => {
@@ -216,7 +297,11 @@ import Fuse from 'fuse.js';
         toolbar.querySelector('[data-fs-reset]').addEventListener('click', () => {
             scale = 1;
             applyFullscreenZoom();
+            container.scrollTop = 0;
+            container.scrollLeft = 0;
         });
+
+        attachPanHandlers(container, toolbar.querySelector('[data-fs-pan]'));
 
         function closeFullscreen() {
             overlay.remove();

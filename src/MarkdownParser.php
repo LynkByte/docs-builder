@@ -178,6 +178,7 @@ class MarkdownParser
                     .'<button data-mermaid-zoom-in title="Zoom in"><span class="material-symbols-outlined">zoom_in</span></button>'
                     .'<button data-mermaid-zoom-out title="Zoom out"><span class="material-symbols-outlined">zoom_out</span></button>'
                     .'<button data-mermaid-reset title="Reset zoom"><span class="material-symbols-outlined">fit_screen</span></button>'
+                    .'<button data-mermaid-pan title="Toggle pan"><span class="material-symbols-outlined">drag_pan</span></button>'
                     .'<button data-mermaid-fullscreen title="Fullscreen"><span class="material-symbols-outlined">fullscreen</span></button>'
                     .'</div>'
                     .'<div class="docs-mermaid-content">'

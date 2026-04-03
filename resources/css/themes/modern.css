@@ -673,6 +673,11 @@ body {
     font-size: 18px;
 }
 
+.docs-mermaid-toolbar button.is-active {
+    background: var(--docs-sidebar-hover-bg);
+    color: var(--color-primary);
+}
+
 .docs-mermaid-content {
     padding: 1.5rem;
     text-align: center;
@@ -683,11 +688,15 @@ body {
 
 .docs-mermaid-content.is-zoomed {
     max-height: 80vh;
+}
+
+.docs-mermaid-content.is-pan-enabled {
     cursor: grab;
 }
 
-.docs-mermaid-content.is-zoomed:active {
+.docs-mermaid-content.is-panning {
     cursor: grabbing;
+    user-select: none;
 }
 
 .docs-mermaid-content pre.mermaid {
@@ -754,22 +763,39 @@ body {
     font-size: 20px;
 }
 
+.docs-mermaid-fullscreen-toolbar button.is-active {
+    background: var(--docs-sidebar-hover-bg);
+    color: var(--color-primary);
+}
+
 .docs-mermaid-fullscreen-content {
     flex: 1;
     overflow: auto;
-    display: flex;
-    align-items: flex-start;
-    justify-content: center;
     width: 100%;
     padding: 2rem;
-    transition: transform 0.2s ease;
-    transform-origin: center top;
+    text-align: center;
     background: var(--docs-bg);
     border-radius: 0.75rem;
     border: 1px solid var(--docs-border);
 }
 
-.docs-mermaid-fullscreen-content svg {
+.docs-mermaid-fullscreen-content.is-pan-enabled {
+    cursor: grab;
+}
+
+.docs-mermaid-fullscreen-content.is-panning {
+    cursor: grabbing;
+    user-select: none;
+}
+
+.docs-mermaid-fullscreen-wrapper {
+    display: inline-block;
+    text-align: center;
+    transition: transform 0.2s ease;
+    transform-origin: top left;
+}
+
+.docs-mermaid-fullscreen-wrapper svg {
     max-width: 100%;
     height: auto;
 }
