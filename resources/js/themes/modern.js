@@ -2,9 +2,10 @@ import Fuse from 'fuse.js';
 
 /*
 |--------------------------------------------------------------------------
-| LynkByte DevDocs - Client-Side JavaScript
+| LynkByte DevDocs — Modern Theme JavaScript
 |--------------------------------------------------------------------------
-| Handles: theme toggle, search command palette, code copy, TOC highlight
+| Handles: theme toggle, search command palette, code copy, TOC highlight,
+| smooth scroll, mobile sidebar, lightbox, mermaid controls, header scroll
 */
 
 (function () {
@@ -23,9 +24,11 @@ import Fuse from 'fuse.js';
         return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     }
 
-    function applyTheme(theme) {
+    function applyTheme(theme, persist = false) {
         document.documentElement.classList.toggle('dark', theme === 'dark');
-        localStorage.setItem(THEME_KEY, theme);
+        if (persist) {
+            localStorage.setItem(THEME_KEY, theme);
+        }
         updateThemeToggleIcons(theme);
         reRenderMermaidDiagrams(theme);
     }
@@ -42,21 +45,39 @@ import Fuse from 'fuse.js';
     }
 
     function initThemeToggle() {
-        applyTheme(getPreferredTheme());
+        applyTheme(getPreferredTheme(), false);
 
         document.querySelectorAll('[data-theme-toggle]').forEach(btn => {
             btn.addEventListener('click', () => {
                 const current = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
-                applyTheme(current === 'dark' ? 'light' : 'dark');
+                applyTheme(current === 'dark' ? 'light' : 'dark', true);
             });
         });
 
-        // Listen for OS preference changes
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
             if (!localStorage.getItem(THEME_KEY)) {
-                applyTheme(e.matches ? 'dark' : 'light');
+                applyTheme(e.matches ? 'dark' : 'light', false);
             }
         });
+    }
+
+    // =========================================================================
+    // HEADER SCROLL EFFECT
+    // =========================================================================
+    function initHeaderScroll() {
+        const header = document.querySelector('.docs-header');
+        if (!header) return;
+
+        let ticking = false;
+        window.addEventListener('scroll', () => {
+            if (!ticking) {
+                requestAnimationFrame(() => {
+                    header.classList.toggle('is-scrolled', window.scrollY > 8);
+                    ticking = false;
+                });
+                ticking = true;
+            }
+        }, { passive: true });
     }
 
     // =========================================================================
@@ -71,14 +92,10 @@ import Fuse from 'fuse.js';
     }
 
     async function reRenderMermaidDiagrams(theme) {
-        if (typeof mermaid === 'undefined') {
-            return;
-        }
+        if (typeof mermaid === 'undefined') return;
 
         const blocks = document.querySelectorAll('.docs-mermaid-content pre.mermaid');
-        if (!blocks.length) {
-            return;
-        }
+        if (!blocks.length) return;
 
         mermaid.initialize({
             startOnLoad: false,
@@ -88,9 +105,7 @@ import Fuse from 'fuse.js';
         for (let i = 0; i < blocks.length; i++) {
             const el = blocks[i];
             const source = el.getAttribute('data-mermaid-source');
-            if (!source) {
-                continue;
-            }
+            if (!source) continue;
             try {
                 const { svg } = await mermaid.render('mermaid-re-' + i, source);
                 el.innerHTML = svg;
@@ -115,9 +130,7 @@ import Fuse from 'fuse.js';
         function updatePanState(enabled) {
             isPanEnabled = enabled;
             scrollableEl.classList.toggle('is-pan-enabled', enabled);
-            if (panBtn) {
-                panBtn.classList.toggle('is-active', enabled);
-            }
+            if (panBtn) panBtn.classList.toggle('is-active', enabled);
         }
 
         updatePanState(true);
@@ -129,9 +142,7 @@ import Fuse from 'fuse.js';
         }
 
         scrollableEl.addEventListener('mousedown', (e) => {
-            if (!isPanEnabled || e.target.closest('button')) {
-                return;
-            }
+            if (!isPanEnabled || e.target.closest('button')) return;
             isDragging = true;
             scrollableEl.classList.add('is-panning');
             startX = e.pageX;
@@ -142,9 +153,7 @@ import Fuse from 'fuse.js';
         });
 
         scrollableEl.addEventListener('mousemove', (e) => {
-            if (!isDragging) {
-                return;
-            }
+            if (!isDragging) return;
             e.preventDefault();
             scrollableEl.scrollLeft = scrollL - (e.pageX - startX);
             scrollableEl.scrollTop = scrollT - (e.pageY - startY);
@@ -165,17 +174,13 @@ import Fuse from 'fuse.js';
         document.querySelectorAll('.docs-mermaid-block').forEach(block => {
             let scale = 1;
             const content = block.querySelector('.docs-mermaid-content');
-            if (!content) {
-                return;
-            }
+            if (!content) return;
 
             let naturalW = 0, naturalH = 0;
 
             function applyZoom() {
                 const pre = content.querySelector('pre.mermaid');
-                if (!pre) {
-                    return;
-                }
+                if (!pre) return;
                 if (!naturalW) {
                     naturalW = pre.scrollWidth || pre.offsetWidth;
                     naturalH = pre.scrollHeight || pre.offsetHeight;
@@ -233,17 +238,13 @@ import Fuse from 'fuse.js';
 
     function openMermaidFullscreen(sourceBlock) {
         const pre = sourceBlock.querySelector('.docs-mermaid-content pre.mermaid');
-        if (!pre) {
-            return;
-        }
+        if (!pre) return;
 
         let scale = 1;
 
-        // Create overlay
         const overlay = document.createElement('div');
         overlay.className = 'docs-mermaid-fullscreen-overlay';
 
-        // Toolbar
         const toolbar = document.createElement('div');
         toolbar.className = 'docs-mermaid-fullscreen-toolbar';
         toolbar.innerHTML =
@@ -253,11 +254,8 @@ import Fuse from 'fuse.js';
             '<button data-fs-pan title="Toggle pan" class="is-active"><span class="material-symbols-outlined">drag_pan</span></button>' +
             '<button data-fs-close title="Close"><span class="material-symbols-outlined">close</span></button>';
 
-        // Scrollable container
         const container = document.createElement('div');
         container.className = 'docs-mermaid-fullscreen-content';
-
-        // Inner wrapper for zoom transforms
         const wrapper = document.createElement('div');
         wrapper.className = 'docs-mermaid-fullscreen-wrapper';
         wrapper.innerHTML = pre.innerHTML;
@@ -313,15 +311,11 @@ import Fuse from 'fuse.js';
 
         toolbar.querySelector('[data-fs-close]').addEventListener('click', closeFullscreen);
         overlay.addEventListener('click', (e) => {
-            if (e.target === overlay) {
-                closeFullscreen();
-            }
+            if (e.target === overlay) closeFullscreen();
         });
 
         function escHandler(e) {
-            if (e.key === 'Escape') {
-                closeFullscreen();
-            }
+            if (e.key === 'Escape') closeFullscreen();
         }
         document.addEventListener('keydown', escHandler);
     }
@@ -335,9 +329,7 @@ import Fuse from 'fuse.js';
     let selectedResultIndex = 0;
 
     async function loadSearchIndex() {
-        if (searchIndex) {
-            return;
-        }
+        if (searchIndex) return;
         try {
             const baseUrl = document.querySelector('meta[name="docs-base-url"]')?.content || '/docs';
             const response = await fetch(`${baseUrl}/search-index.json`);
@@ -353,6 +345,12 @@ import Fuse from 'fuse.js';
                 includeMatches: true,
                 minMatchCharLength: 2,
             });
+
+            // Replay the current query if the user typed while the index was loading
+            const searchInput = document.getElementById('docs-search-input');
+            if (searchInput && searchInput.value.length >= 2) {
+                performSearch(searchInput.value);
+            }
         } catch (e) {
             console.warn('Failed to load search index:', e);
         }
@@ -360,12 +358,14 @@ import Fuse from 'fuse.js';
 
     function openSearchModal() {
         const modal = document.getElementById('docs-search-modal');
-        if (!modal) {
-            return;
-        }
+        if (!modal) return;
         searchModalOpen = true;
         modal.classList.remove('hidden');
-        modal.querySelector('input')?.focus();
+        const input = modal.querySelector('input');
+        if (input) {
+            input.value = '';
+            input.focus();
+        }
         selectedResultIndex = 0;
         loadSearchIndex();
         document.body.style.overflow = 'hidden';
@@ -373,9 +373,7 @@ import Fuse from 'fuse.js';
 
     function closeSearchModal() {
         const modal = document.getElementById('docs-search-modal');
-        if (!modal) {
-            return;
-        }
+        if (!modal) return;
         searchModalOpen = false;
         modal.classList.add('hidden');
         document.body.style.overflow = '';
@@ -383,12 +381,10 @@ import Fuse from 'fuse.js';
 
     function performSearch(query) {
         const resultsContainer = document.getElementById('docs-search-results');
-        if (!resultsContainer || !fuse) {
-            return;
-        }
+        if (!resultsContainer || !fuse) return;
 
         if (!query || query.length < 2) {
-            resultsContainer.innerHTML = '<div class="px-5 py-8 text-center text-sm text-slate-500">Type to search documentation...</div>';
+            resultsContainer.innerHTML = '<div class="px-5 py-10 text-center text-sm text-[var(--docs-text-muted)]"><span class="material-symbols-outlined text-2xl mb-2 block opacity-40">travel_explore</span>Type to search documentation...</div>';
             return;
         }
 
@@ -396,7 +392,7 @@ import Fuse from 'fuse.js';
         selectedResultIndex = 0;
 
         if (results.length === 0) {
-            resultsContainer.innerHTML = '<div class="px-5 py-8 text-center text-sm text-slate-500">No results found.</div>';
+            resultsContainer.innerHTML = '<div class="px-5 py-10 text-center text-sm text-[var(--docs-text-muted)]"><span class="material-symbols-outlined text-2xl mb-2 block opacity-40">search_off</span>No results found.</div>';
             return;
         }
 
@@ -404,22 +400,20 @@ import Fuse from 'fuse.js';
         const grouped = {};
         results.forEach(result => {
             const section = result.item.section || 'Documentation';
-            if (!grouped[section]) {
-                grouped[section] = [];
-            }
+            if (!grouped[section]) grouped[section] = [];
             grouped[section].push(result);
         });
 
         let html = '';
         let index = 0;
         for (const [section, items] of Object.entries(grouped)) {
-            html += `<section class="mt-2 mb-6 px-5">`;
-            html += `<h3 class="text-[10px] font-bold text-slate-500 uppercase tracking-[0.15em] px-3 mb-4">${escapeHtml(section)}</h3>`;
-            html += `<div class="space-y-1">`;
+            html += `<section class="py-2 px-4">`;
+            html += `<h3 class="text-[10px] font-bold text-[var(--docs-text-muted)] uppercase tracking-[0.12em] px-3 mb-2">${escapeHtml(section)}</h3>`;
+            html += `<div class="space-y-0.5">`;
             items.forEach(result => {
                 const item = result.item;
                 const isApi = item.type === 'api-endpoint';
-                html += `<a href="${escapeHtml(item.url)}" class="docs-search-result group flex items-center gap-4 p-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800/40 cursor-pointer transition-colors" data-result-index="${index}">`;
+                html += `<a href="${escapeHtml(item.url)}" class="docs-search-result group flex items-center gap-3 p-2.5 rounded-lg hover:bg-[var(--docs-search-hover-bg)] cursor-pointer transition-colors" data-result-index="${index}">`;
                 if (isApi && item.method) {
                     const methodLower = item.method.toLowerCase();
                     const methodColors = {
@@ -429,16 +423,18 @@ import Fuse from 'fuse.js';
                         patch: 'bg-amber-500/10 text-amber-500',
                         delete: 'bg-red-500/10 text-red-500',
                     };
-                    html += `<div class="w-12 h-6 flex items-center justify-center rounded ${methodColors[methodLower] || 'bg-slate-500/10 text-slate-500'} text-[10px] font-bold">${item.method.toUpperCase()}</div>`;
+                    html += `<div class="w-10 h-5 flex items-center justify-center rounded ${methodColors[methodLower] || 'bg-slate-500/10 text-slate-500'} text-[9px] font-bold shrink-0">${item.method.toUpperCase()}</div>`;
                 } else {
-                    html += `<div class="w-10 h-10 flex items-center justify-center rounded-lg bg-blue-500/10 text-primary shrink-0 border border-blue-500/20"><span class="material-symbols-outlined text-xl">${item.icon || 'description'}</span></div>`;
+                    html += `<div class="w-8 h-8 flex items-center justify-center rounded-lg bg-[var(--docs-sidebar-active-bg)] text-[var(--color-primary)] shrink-0"><span class="material-symbols-outlined text-[18px]">${item.icon || 'description'}</span></div>`;
                 }
                 html += `<div class="min-w-0 flex-1">`;
-                html += `<h4 class="text-slate-800 dark:text-slate-200 font-semibold text-sm truncate">${escapeHtml(item.title)}</h4>`;
+                html += `<h4 class="text-[var(--docs-text)] font-medium text-sm truncate">${escapeHtml(item.title)}</h4>`;
                 if (item.description) {
-                    html += `<p class="text-slate-500 text-xs mt-0.5 truncate">${escapeHtml(item.description)}</p>`;
+                    html += `<p class="text-[var(--docs-text-muted)] text-xs mt-0.5 truncate">${escapeHtml(item.description)}</p>`;
                 }
-                html += `</div></a>`;
+                html += `</div>`;
+                html += `<span class="material-symbols-outlined text-[16px] text-[var(--docs-text-muted)] opacity-0 group-hover:opacity-100 transition-opacity shrink-0">arrow_forward</span>`;
+                html += `</a>`;
                 index++;
             });
             html += `</div></section>`;
@@ -452,8 +448,10 @@ import Fuse from 'fuse.js';
         const results = document.querySelectorAll('.docs-search-result');
         results.forEach((el, i) => {
             const isSelected = i === selectedResultIndex;
-            el.classList.toggle('bg-slate-100', isSelected);
-            el.classList.toggle('dark:bg-slate-800/40', isSelected);
+            el.classList.toggle('bg-[var(--docs-search-hover-bg)]', isSelected);
+            if (isSelected) {
+                el.scrollIntoView({ block: 'nearest' });
+            }
         });
     }
 
@@ -465,7 +463,6 @@ import Fuse from 'fuse.js';
     }
 
     function initSearch() {
-        // Open search with Ctrl+K / Cmd+K
         document.addEventListener('keydown', (e) => {
             if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
                 e.preventDefault();
@@ -497,22 +494,23 @@ import Fuse from 'fuse.js';
             }
         });
 
-        // Search trigger buttons
         document.querySelectorAll('[data-search-trigger]').forEach(btn => {
             btn.addEventListener('click', openSearchModal);
         });
 
-        // Close when clicking overlay
         const modal = document.getElementById('docs-search-modal');
         if (modal) {
             modal.addEventListener('click', (e) => {
-                if (e.target === modal) {
-                    closeSearchModal();
-                }
+                if (e.target === modal) closeSearchModal();
             });
+
+            // Also close when clicking the overlay div
+            const overlay = modal.querySelector('.docs-search-overlay');
+            if (overlay) {
+                overlay.addEventListener('click', closeSearchModal);
+            }
         }
 
-        // Search input handler
         const searchInput = document.getElementById('docs-search-input');
         if (searchInput) {
             let debounceTimer;
@@ -532,9 +530,7 @@ import Fuse from 'fuse.js';
         document.querySelectorAll('[data-copy-code]').forEach(btn => {
             btn.addEventListener('click', async () => {
                 const codeBlock = btn.closest('.docs-code-block')?.querySelector('code');
-                if (!codeBlock) {
-                    return;
-                }
+                if (!codeBlock) return;
                 try {
                     await navigator.clipboard.writeText(codeBlock.textContent);
                     const originalHtml = btn.innerHTML;
@@ -556,9 +552,7 @@ import Fuse from 'fuse.js';
     // =========================================================================
     function initTocHighlight() {
         const tocLinks = document.querySelectorAll('.docs-toc-link');
-        if (!tocLinks.length) {
-            return;
-        }
+        if (!tocLinks.length) return;
 
         const headings = [];
         tocLinks.forEach(link => {
@@ -571,9 +565,7 @@ import Fuse from 'fuse.js';
             }
         });
 
-        if (!headings.length) {
-            return;
-        }
+        if (!headings.length) return;
 
         function updateActiveHeading() {
             let activeIndex = 0;
@@ -601,14 +593,11 @@ import Fuse from 'fuse.js';
         document.querySelectorAll('a[href^="#"]').forEach(anchor => {
             anchor.addEventListener('click', (e) => {
                 const id = anchor.getAttribute('href')?.slice(1);
-                if (!id) {
-                    return;
-                }
+                if (!id) return;
                 const target = document.getElementById(id);
                 if (target) {
                     e.preventDefault();
                     target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    // Update URL without scrolling
                     history.pushState(null, '', `#${id}`);
                 }
             });
@@ -622,20 +611,25 @@ import Fuse from 'fuse.js';
         const toggleBtn = document.getElementById('docs-mobile-menu-toggle');
         const sidebar = document.getElementById('docs-mobile-sidebar');
         const overlay = document.getElementById('docs-mobile-overlay');
+        const closeBtn = document.getElementById('docs-mobile-menu-close');
 
-        if (!toggleBtn || !sidebar) {
-            return;
+        if (!toggleBtn || !sidebar) return;
+
+        function openSidebar() {
+            sidebar.classList.remove('-translate-x-full');
+            overlay?.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
         }
 
-        toggleBtn.addEventListener('click', () => {
-            sidebar.classList.toggle('-translate-x-full');
-            overlay?.classList.toggle('hidden');
-        });
-
-        overlay?.addEventListener('click', () => {
+        function closeSidebar() {
             sidebar.classList.add('-translate-x-full');
-            overlay.classList.add('hidden');
-        });
+            overlay?.classList.add('hidden');
+            document.body.style.overflow = '';
+        }
+
+        toggleBtn.addEventListener('click', openSidebar);
+        overlay?.addEventListener('click', closeSidebar);
+        closeBtn?.addEventListener('click', closeSidebar);
     }
 
     // =========================================================================
@@ -644,7 +638,6 @@ import Fuse from 'fuse.js';
     function initLightbox() {
         let lightboxTrigger = null;
 
-        // Create lightbox overlay element
         const overlay = document.createElement('div');
         overlay.className = 'docs-lightbox';
         overlay.setAttribute('role', 'dialog');
@@ -671,7 +664,6 @@ import Fuse from 'fuse.js';
             overlay.classList.remove('active');
             document.body.style.overflow = '';
             lightboxTrigger?.focus();
-            // Clear src after transition to free memory
             setTimeout(() => {
                 if (!overlay.classList.contains('active')) {
                     lightboxImg.src = '';
@@ -679,26 +671,19 @@ import Fuse from 'fuse.js';
             }, 300);
         }
 
-        // Attach click to all content images
         document.querySelectorAll('.docs-content img').forEach(img => {
             img.addEventListener('click', () => {
                 openLightbox(img.src, img.alt);
             });
         });
 
-        // Close handlers
         closeBtn.addEventListener('click', closeLightbox);
         overlay.addEventListener('click', (e) => {
-            if (e.target === overlay) {
-                closeLightbox();
-            }
+            if (e.target === overlay) closeLightbox();
         });
         document.addEventListener('keydown', (e) => {
             if (!overlay.classList.contains('active')) return;
-            if (e.key === 'Escape') {
-                closeLightbox();
-            }
-            // Trap Tab focus within the lightbox
+            if (e.key === 'Escape') closeLightbox();
             if (e.key === 'Tab') {
                 e.preventDefault();
                 closeBtn.focus();
@@ -712,6 +697,7 @@ import Fuse from 'fuse.js';
     function init() {
         initMermaidSource();
         initThemeToggle();
+        initHeaderScroll();
         initMermaidControls();
         initSearch();
         initCodeCopy();
@@ -721,7 +707,6 @@ import Fuse from 'fuse.js';
         initLightbox();
     }
 
-    // Run on DOM ready
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
     } else {

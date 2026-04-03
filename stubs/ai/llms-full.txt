@@ -208,6 +208,18 @@ php artisan vendor:publish --tag=docs-builder-config
 'fonts' => false,
 ```
 
+### Theme Name
+
+```php
+// Default: cool blue DevDocs-inspired theme
+'theme_name' => 'default',
+
+// Modern: warm amber/gold theme inspired by Mintlify and Laravel docs
+'theme_name' => 'modern',
+```
+
+Both themes support dark/light mode, all the same features, and identical configuration options. The service provider prepends the theme's view directory so Laravel resolves theme views first, falling back to the default for any missing templates.
+
 ### Asset Mode
 
 ```php
@@ -352,6 +364,16 @@ The sidebar navigation is defined as an array of sections. Each section has a `t
 ],
 ```
 
+### Support URL
+
+```php
+// Show a "Contact Support" link in the table of contents sidebar
+'support_url' => 'mailto:support@example.com',
+
+// Set to null to hide the support card entirely (default)
+'support_url' => null,
+```
+
 ---
 
 ## Core Classes
@@ -441,7 +463,7 @@ Code blocks render with:
 
 **Mermaid diagrams:**
 
-Fenced code blocks with language `mermaid` are converted into interactive diagram containers with zoom in/out, reset, and fullscreen toolbar buttons. Mermaid JS is loaded from CDN at runtime.
+Fenced code blocks with language `mermaid` are converted into interactive diagram containers with zoom in/out, reset, pan (drag-to-scroll), and fullscreen toolbar buttons. Pan is enabled by default when zoomed. Mermaid JS is loaded from CDN at runtime.
 
 ### `LynkByte\DocsBuilder\OpenApiParser`
 
@@ -473,7 +495,10 @@ Parses OpenAPI 3.x YAML specification files.
 | `operationId` | `string` | Unique operation identifier (used for URL slugs) |
 | `summary` | `string` | Short summary |
 | `description` | `string` | Detailed description |
-| `parameters` | `array` | Path, query, and body parameters |
+| `parameters` | `array` | All parameters (flat array, backward compat) |
+| `pathParameters` | `array` | Path parameters only |
+| `queryParameters` | `array` | Query parameters only |
+| `bodyParameters` | `array` | Request body parameters only |
 | `responses` | `array` | Response definitions with status codes |
 | `security` | `array` | Security scheme names |
 
@@ -552,17 +577,18 @@ Auto-discovered Laravel service provider.
 
 **`boot()`:**
 - Loads Blade views from `resources/views` under the `docs-builder` namespace
+- If `theme_name` is not `'default'`, prepends the theme's view directory so themed templates take priority over default views
 - Registers `docs:init`, `docs:ai`, and `docs:build` commands (console only)
-- Defines six publishable asset groups (see Publishing section)
+- Defines seven publishable asset groups (see Publishing section)
 
 ---
 
 ## Blade Template Structure
 
-All views are under the `docs-builder::docs` namespace.
+All views are under the `docs-builder::docs` namespace. When `theme_name` is set to a non-default theme (e.g., `'modern'`), the service provider prepends `resources/views/themes/{name}/` so themed templates take priority, with automatic fallback to the default templates for any missing files.
 
 ```
-resources/views/docs/
+resources/views/docs/                    # Default theme
 ├── layouts/
 │   ├── base.blade.php              # Root HTML document (<html>, <head>, scripts, styles)
 │   ├── documentation.blade.php     # Standard doc page (sidebar + content + TOC)
@@ -573,6 +599,18 @@ resources/views/docs/
     ├── toc.blade.php               # Right-side table of contents (from h2-h4 headings)
     ├── search-modal.blade.php      # Search command palette overlay (Cmd+K / Ctrl+K)
     └── footer.blade.php            # Site footer (copyright + links)
+
+resources/views/themes/modern/docs/      # Modern theme (overrides default)
+├── layouts/
+│   ├── base.blade.php
+│   ├── documentation.blade.php
+│   └── api-reference.blade.php
+└── partials/
+    ├── header.blade.php
+    ├── sidebar.blade.php
+    ├── toc.blade.php
+    ├── search-modal.blade.php
+    └── footer.blade.php
 ```
 
 **View data passed to documentation layout:**
@@ -596,6 +634,7 @@ resources/views/docs/
 | `$headerNav` | `array\|null` | Header nav links or null |
 | `$fonts` | `array\|false` | Google Fonts URLs or false |
 | `$themeOverrides` | `array` | CSS custom property overrides |
+| `$supportUrl` | `string\|null` | Support URL from config (null hides the card) |
 
 **Additional variables for api-reference layout:**
 
@@ -604,9 +643,13 @@ resources/views/docs/
 | `$apiEndpoints` | `array` | Endpoints grouped by tag with URLs |
 | `$tagIcons` | `array` | Tag-to-icon mapping |
 | `$apiVersion` | `string` | API version string |
+| `$apiServerUrl` | `string` | Server base URL from the OpenAPI spec |
 | `$endpointMethod` | `string\|null` | HTTP method (null for overview page) |
 | `$endpointPath` | `string\|null` | Endpoint path (null for overview page) |
-| `$parameters` | `array` | Endpoint parameters |
+| `$parameters` | `array` | All endpoint parameters (flat array) |
+| `$pathParameters` | `array` | Path parameters only |
+| `$queryParameters` | `array` | Query parameters only |
+| `$bodyParameters` | `array` | Request body parameters only |
 | `$responses` | `array` | Endpoint responses |
 | `$currentEndpoint` | `string\|null` | Current endpoint operationId |
 
@@ -614,7 +657,7 @@ resources/views/docs/
 
 ## Publishing
 
-Six publishable groups for granular customization:
+Seven publishable groups for granular customization:
 
 ```bash
 # Configuration file
@@ -640,6 +683,10 @@ php artisan vendor:publish --tag=docs-builder-js
 # Init scaffold templates
 php artisan vendor:publish --tag=docs-builder-stubs
 # -> stubs/docs-builder/
+
+# LLM documentation files
+php artisan vendor:publish --tag=docs-builder-llms
+# -> llms.txt, llms-full.txt (project root)
 ```
 
 ### Customizing Templates
@@ -848,7 +895,7 @@ The builder generates `search-index.json` in the output directory. Search is pow
 'asset_mode' => 'precompiled',
 ```
 
-Uses pre-built `docs.css` and `docs.js` from the package's `dist/` directory. Build command copies them to `output_dir/assets/`.
+Uses pre-built `docs.css` and `docs.js` from the package's `dist/` directory. Build command copies them to `output_dir/assets/`. When a non-default theme is configured, the theme's CSS and JS are also copied from `dist/themes/`.
 
 - No Node.js required
 - Instant builds
@@ -898,14 +945,26 @@ docs-builder/
 ├── config/
 │   └── docs-builder.php            # Default configuration
 ├── dist/
-│   ├── docs-css.css                # Pre-compiled Tailwind CSS v4
-│   └── docs.js                     # Pre-compiled JS (Fuse.js bundled)
+│   ├── docs-css.css                # Pre-compiled default theme CSS
+│   ├── docs.js                     # Pre-compiled default theme JS (Fuse.js bundled)
+│   ├── fuse.js                     # Shared Fuse.js chunk (ES module)
+│   └── themes/
+│       ├── modern-css.css          # Pre-compiled modern theme CSS
+│       └── modern.js               # Pre-compiled modern theme JS
 ├── resources/
-│   ├── css/docs.css                # Tailwind CSS v4 source
-│   ├── js/docs.js                  # Client-side JS source
-│   └── views/docs/                 # Blade templates
-│       ├── layouts/                # Page layouts (base, documentation, api-reference)
-│       └── partials/               # Reusable partials (header, sidebar, toc, search, footer)
+│   ├── css/
+│   │   ├── docs.css                # Default theme CSS source (Tailwind CSS v4)
+│   │   └── themes/modern.css       # Modern theme CSS source
+│   ├── js/
+│   │   ├── docs.js                 # Default theme JS source
+│   │   └── themes/modern.js        # Modern theme JS source
+│   └── views/
+│       ├── docs/                   # Default theme Blade templates
+│       │   ├── layouts/            # Page layouts (base, documentation, api-reference)
+│       │   └── partials/           # Reusable partials (header, sidebar, toc, search, footer)
+│       └── themes/modern/docs/     # Modern theme Blade template overrides
+│           ├── layouts/
+│           └── partials/
 ├── src/
 │   ├── Commands/
 │   │   ├── AiDocsCommand.php       # docs:ai Artisan command
@@ -917,6 +976,12 @@ docs-builder/
 │   ├── OpenApiParser.php           # OpenAPI YAML parser
 │   └── SearchIndexBuilder.php      # Search index JSON generator
 ├── stubs/
+│   ├── ai/                         # AI tool configuration stubs
+│   │   ├── llms.txt                # LLM-friendly overview
+│   │   ├── llms-full.txt           # Comprehensive LLM reference
+│   │   ├── cursor-rules.mdc       # Cursor AI coding rules
+│   │   ├── copilot-instructions.md # GitHub Copilot instructions
+│   │   └── CLAUDE.md              # Claude code instructions
 │   ├── README.md                   # Scaffold template for docs:init
 │   └── openapi.yaml                # Scaffold template for docs:init
 ├── tests/

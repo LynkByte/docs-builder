@@ -10,8 +10,12 @@ export default defineConfig({
         emptyOutDir: true,
         rollupOptions: {
             input: {
+                // Default theme
                 docs: 'resources/js/docs.js',
                 'docs-css': 'resources/css/docs.css',
+                // Modern theme
+                'themes/modern': 'resources/js/themes/modern.js',
+                'themes/modern-css': 'resources/css/themes/modern.css',
             },
             output: {
                 entryFileNames: '[name].js',

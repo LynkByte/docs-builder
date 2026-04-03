@@ -31,7 +31,7 @@ it('groups endpoints by tags', function () {
 
     expect($result['endpoints'])->toHaveKeys(['Authentication', 'User'])
         ->and($result['endpoints']['Authentication'])->toHaveCount(3)
-        ->and($result['endpoints']['User'])->toHaveCount(1);
+        ->and($result['endpoints']['User'])->toHaveCount(2);
 });
 
 it('extracts endpoint details', function () {
@@ -59,6 +59,41 @@ it('marks required parameters', function () {
     $emailParam = collect($register['parameters'])->firstWhere('name', 'email');
 
     expect($emailParam['required'])->toBeTrue();
+});
+
+it('splits parameters by location', function () {
+    $result = $this->parser->parse($this->specFile);
+    $register = $result['endpoints']['Authentication'][0];
+
+    expect($register)->toHaveKeys(['pathParameters', 'queryParameters', 'bodyParameters'])
+        ->and($register['pathParameters'])->toBeEmpty()
+        ->and($register['queryParameters'])->toBeEmpty()
+        ->and($register['bodyParameters'])->toHaveCount(5)
+        ->and(array_column($register['bodyParameters'], 'name'))->toContain('name', 'email', 'password');
+});
+
+it('sets correct in field for body parameters', function () {
+    $result = $this->parser->parse($this->specFile);
+    $register = $result['endpoints']['Authentication'][0];
+
+    foreach ($register['bodyParameters'] as $param) {
+        expect($param['in'])->toBe('body');
+    }
+});
+
+it('splits path, query, and body parameters correctly', function () {
+    $result = $this->parser->parse($this->specFile);
+    $updateUser = $result['endpoints']['User'][1];
+
+    expect($updateUser['operationId'])->toBe('updateUser')
+        ->and($updateUser['pathParameters'])->toHaveCount(1)
+        ->and($updateUser['pathParameters'][0]['name'])->toBe('id')
+        ->and($updateUser['pathParameters'][0]['in'])->toBe('path')
+        ->and($updateUser['queryParameters'])->toHaveCount(1)
+        ->and($updateUser['queryParameters'][0]['name'])->toBe('include')
+        ->and($updateUser['queryParameters'][0]['in'])->toBe('query')
+        ->and($updateUser['bodyParameters'])->toHaveCount(2)
+        ->and(array_column($updateUser['bodyParameters'], 'name'))->toBe(['name', 'email']);
 });
 
 it('extracts response codes', function () {

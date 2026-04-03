@@ -94,6 +94,7 @@ class BuildDocsCommand extends Command
             }
 
             $distDir = $this->packageDistPath();
+            $themeName = config('docs-builder.theme_name', 'default');
 
             if (! is_dir($distDir)) {
                 throw new \RuntimeException(
@@ -102,8 +103,18 @@ class BuildDocsCommand extends Command
                 );
             }
 
-            $cssSource = $distDir.'/docs-css.css';
-            $jsSource = $distDir.'/docs.js';
+            // Resolve CSS and JS sources based on the active theme
+            if ($themeName !== 'default' && file_exists($distDir.'/themes/'.$themeName.'-css.css')) {
+                $cssSource = $distDir.'/themes/'.$themeName.'-css.css';
+            } else {
+                $cssSource = $distDir.'/docs-css.css';
+            }
+
+            if ($themeName !== 'default' && file_exists($distDir.'/themes/'.$themeName.'.js')) {
+                $jsSource = $distDir.'/themes/'.$themeName.'.js';
+            } else {
+                $jsSource = $distDir.'/docs.js';
+            }
 
             if (file_exists($cssSource)) {
                 copy($cssSource, $assetsDir.'/docs.css');
@@ -111,6 +122,29 @@ class BuildDocsCommand extends Command
 
             if (file_exists($jsSource)) {
                 copy($jsSource, $assetsDir.'/docs.js');
+            }
+
+            // Copy shared JS chunks (e.g. fuse.js) that entry points import.
+            // Theme JS in dist/themes/ imports these via "../<chunk>.js", so we
+            // rewrite any "../" import prefixes to "./" since all assets are
+            // flattened into the same output directory.
+            foreach (glob($distDir.'/*.js') as $chunkFile) {
+                $basename = basename($chunkFile);
+                if ($basename === 'docs.js') {
+                    continue; // Already handled above
+                }
+                copy($chunkFile, $assetsDir.'/'.$basename);
+            }
+
+            // Fix relative import paths in docs.js when sourced from a theme
+            // subdirectory (e.g. "../fuse.js" → "./fuse.js")
+            $docsJsPath = $assetsDir.'/docs.js';
+            if ($themeName !== 'default' && file_exists($docsJsPath)) {
+                $content = file_get_contents($docsJsPath);
+                $fixed = preg_replace('/from\s*"\.\.\/([^"]+)"/', 'from"./$1"', $content);
+                if ($fixed !== $content) {
+                    file_put_contents($docsJsPath, $fixed);
+                }
             }
         });
     }
@@ -136,6 +170,10 @@ class BuildDocsCommand extends Command
 
     /**
      * Copy compiled Vite assets (docs.css, docs.js) to the docs output.
+     *
+     * When a non-default theme is active, looks for theme-specific manifest
+     * entries first (e.g. css/themes/modern.css), falling back to the default
+     * entries if not found.
      */
     private function copyViteAssets(string $assetsDir): void
     {
@@ -150,10 +188,19 @@ class BuildDocsCommand extends Command
         }
 
         $manifest = json_decode(file_get_contents($manifestPath), true);
+        $themeName = config('docs-builder.theme_name', 'default');
 
-        // Auto-detect published source files or fall back to vendor paths
-        $cssKey = $this->resolveViteEntryKey($manifest, 'css/docs.css');
-        $jsKey = $this->resolveViteEntryKey($manifest, 'js/docs.js');
+        // Resolve theme-specific entries first, falling back to default
+        $cssKey = null;
+        $jsKey = null;
+
+        if ($themeName !== 'default') {
+            $cssKey = $this->resolveViteEntryKey($manifest, 'css/themes/'.$themeName.'.css');
+            $jsKey = $this->resolveViteEntryKey($manifest, 'js/themes/'.$themeName.'.js');
+        }
+
+        $cssKey = $cssKey ?? $this->resolveViteEntryKey($manifest, 'css/docs.css');
+        $jsKey = $jsKey ?? $this->resolveViteEntryKey($manifest, 'js/docs.js');
 
         // Find and copy docs.css
         $cssEntry = $cssKey ? ($manifest[$cssKey] ?? null) : null;
@@ -186,13 +233,40 @@ class BuildDocsCommand extends Command
                 }
             }
         }
+
+        // Copy shared JS chunks imported by the entry point (e.g. fuse.js)
+        if ($jsEntry && isset($jsEntry['imports'])) {
+            foreach ($jsEntry['imports'] as $importKey) {
+                $importEntry = $manifest[$importKey] ?? null;
+                if ($importEntry && isset($importEntry['file'])) {
+                    $chunkSource = public_path('build/'.$importEntry['file']);
+                    $chunkBasename = basename($importEntry['file']);
+                    if (file_exists($chunkSource)) {
+                        copy($chunkSource, $assetsDir.'/'.$chunkBasename);
+                    }
+                }
+            }
+        }
+
+        // Fix relative import paths in docs.js when sourced from a theme
+        // subdirectory (e.g. "../fuse.js" → "./fuse.js")
+        $docsJsPath = $assetsDir.'/docs.js';
+        if ($themeName !== 'default' && file_exists($docsJsPath)) {
+            $content = file_get_contents($docsJsPath);
+            $fixed = preg_replace('/from\s*"\.\.\/([^"]+)"/', 'from"./$1"', $content);
+            if ($fixed !== $content) {
+                file_put_contents($docsJsPath, $fixed);
+            }
+        }
     }
 
     /**
      * Resolve the Vite manifest entry key for a docs asset.
      *
      * Checks for published source files (resources/css/docs.css) first,
-     * then falls back to the vendor package path.
+     * then falls back to the vendor package path, and finally attempts
+     * to match by entry name (e.g. 'docs-css', 'themes/modern') since
+     * the host app's Vite config may use custom entry names as keys.
      */
     private function resolveViteEntryKey(array $manifest, string $relativePath): ?string
     {
@@ -208,7 +282,43 @@ class BuildDocsCommand extends Command
             return $vendorKey;
         }
 
+        // Match by entry name — the host app's vite.config may use named entries
+        // (e.g. 'docs-css' for 'resources/css/docs.css', 'themes/modern' for
+        // 'resources/js/themes/modern.js'). Derive candidate names from the path.
+        $candidateNames = $this->deriveEntryNames($relativePath);
+        foreach ($candidateNames as $name) {
+            if (isset($manifest[$name])) {
+                return $name;
+            }
+        }
+
         return null;
+    }
+
+    /**
+     * Derive possible Vite entry names from a relative asset path.
+     *
+     * For example, 'css/docs.css' yields ['docs-css'], and
+     * 'js/themes/modern.js' yields ['themes/modern', 'themes/modern-js'].
+     *
+     * @return array<int, string>
+     */
+    private function deriveEntryNames(string $relativePath): array
+    {
+        $withoutExt = preg_replace('/\.[^.]+$/', '', $relativePath);
+        $ext = pathinfo($relativePath, PATHINFO_EXTENSION);
+
+        // Strip leading 'css/' or 'js/' prefix
+        $stripped = preg_replace('#^(css|js)/#', '', $withoutExt);
+
+        $names = [$stripped];
+
+        // Also try appending the extension as a suffix (e.g. 'docs-css')
+        if ($ext && ! str_ends_with($stripped, '-'.$ext)) {
+            $names[] = $stripped.'-'.$ext;
+        }
+
+        return $names;
     }
 
     /**

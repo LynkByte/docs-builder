@@ -83,6 +83,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Theme Name
+    |--------------------------------------------------------------------------
+    | The visual theme used for the documentation site.
+    |
+    | 'default' - The original DevDocs theme (blue, cool tones)
+    | 'modern'  - A warm, polished theme inspired by Mintlify/Laravel docs
+    |
+    | Custom themes can be added by creating view and CSS/JS files under
+    | resources/views/themes/{name}/ and resources/css/themes/{name}.css
+    */
+    'theme_name' => 'default',
+
+    /*
+    |--------------------------------------------------------------------------
     | Asset Mode
     |--------------------------------------------------------------------------
     | How CSS/JS assets are handled during docs:build.
@@ -153,6 +167,15 @@ return [
     | if left empty.
     */
     'api_navigation' => [],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Support URL
+    |--------------------------------------------------------------------------
+    | URL for the "Contact Support" link shown in the table of contents
+    | sidebar. Set to null to hide the support card entirely.
+    */
+    'support_url' => null,
 
     /*
     |--------------------------------------------------------------------------

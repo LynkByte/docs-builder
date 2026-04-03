@@ -18,6 +18,18 @@ class DocsBuilderServiceProvider extends ServiceProvider
     {
         $this->loadViewsFrom(__DIR__.'/../resources/views', 'docs-builder');
 
+        // If a named theme is configured, prepend its view path so it takes
+        // priority over the default views (Laravel checks prepended paths first).
+        $themeName = config('docs-builder.theme_name', 'default');
+        if ($themeName !== 'default') {
+            $themePath = __DIR__.'/../resources/views/themes/'.$themeName;
+            if (is_dir($themePath)) {
+                $this->app['view']->prependNamespace('docs-builder', $themePath);
+            } else {
+                Log::warning("DocsBuilder: configured theme '{$themeName}' directory not found at [{$themePath}]. Falling back to default theme.");
+            }
+        }
+
         if ($this->app->runningInConsole()) {
             $this->commands([
                 AiDocsCommand::class,

@@ -13,12 +13,13 @@ A Laravel package that compiles Markdown files and OpenAPI 3.x YAML specificatio
 
 - **Markdown with GFM** — Tables, task lists, strikethrough, and all GitHub Flavored Markdown extensions
 - **Server-side syntax highlighting** — 15+ languages via [Tempest Highlight](https://github.com/tempestphp/highlight), with styled code blocks, language labels, and copy-to-clipboard buttons
-- **Mermaid diagrams** — Render flowcharts, sequence diagrams, ERDs, and more using fenced `mermaid` code blocks, with automatic dark/light theme support
+- **Mermaid diagrams** — Render flowcharts, sequence diagrams, ERDs, and more using fenced `mermaid` code blocks, with automatic dark/light theme support, zoom in/out, pan (drag-to-scroll), and fullscreen
 - **Image support** — Standalone images are wrapped in `<figure>` with alt-text captions, click-to-zoom lightbox overlay, and lazy loading for all images
 - **Video embeds** — YouTube and Vimeo URLs are auto-embedded as privacy-enhanced iframes; local `.mp4`/`.webm`/`.ogg` URLs render as native `<video>` elements with responsive 16:9 containers
 - **OpenAPI 3.x API reference** — Auto-generates endpoint pages from your YAML spec with parameters, responses, and an interactive "Try it out" panel
 - **Client-side search** — Instant full-text search powered by [Fuse.js](https://www.fusejs.io/) with a keyboard-driven command palette (`Cmd+K` / `Ctrl+K`)
 - **Dark / light theme** — Class-based toggle with OS preference detection and `localStorage` persistence
+- **Multiple visual themes** — Ships with a `default` theme (cool blue tones) and a `modern` theme (warm amber/gold, inspired by Mintlify and Laravel docs). Switch with a single config key.
 - **Responsive 3-column layout** — Sidebar navigation, content area, and table of contents with mobile slide-in sidebar
 - **Pre-compiled assets** — Ships with production-ready CSS and JS in `dist/` — no Node.js or build step needed
 - **Optional Vite integration** — Opt into the host app's Vite pipeline for full asset customization
@@ -135,6 +136,20 @@ php artisan vendor:publish --tag=docs-builder-config
 
 > **Note:** Material Symbols Outlined is used for sidebar page icons and UI elements. If you disable fonts, icons will not render unless you provide them through another mechanism.
 
+#### Theme Name
+
+Switch between built-in visual themes with a single config key:
+
+```php
+// Default: cool blue DevDocs-inspired theme
+'theme_name' => 'default',
+
+// Modern: warm amber/gold theme inspired by Mintlify and Laravel docs
+'theme_name' => 'modern',
+```
+
+Both themes support dark/light mode, all the same features, and the same configuration options. The modern theme has a warmer color palette, refined typography, and a polished card-based layout.
+
 #### Theme Overrides
 
 Override the default CSS custom properties by setting key-value pairs. These are injected as an inline `<style>` block on `:root`.
@@ -236,6 +251,16 @@ Pages using the `api-reference` layout render with the API sidebar (tags, endpoi
 ],
 ```
 
+### Support URL
+
+```php
+// Show a "Contact Support" link in the table of contents sidebar
+'support_url' => 'mailto:support@example.com',
+
+// Set to null to hide the support card entirely (default)
+'support_url' => null,
+```
+
 ## Writing Documentation
 
 ### Markdown Files
@@ -291,7 +316,7 @@ graph TD
 ```
 ````
 
-Diagrams automatically adapt when the user toggles between dark and light themes. Mermaid JS is loaded from CDN -- no additional dependencies or build steps are required.
+Diagrams automatically adapt when the user toggles between dark and light themes. Each diagram includes a toolbar with zoom in/out, reset, pan (drag-to-scroll), and fullscreen controls. Pan is enabled by default when diagrams are zoomed, allowing click-and-drag navigation. Mermaid JS is loaded from CDN -- no additional dependencies or build steps are required.
 
 ### Images
 
@@ -384,7 +409,7 @@ The package supports two modes for handling CSS and JavaScript assets.
 'asset_mode' => 'precompiled',
 ```
 
-Uses the pre-built `docs.css` and `docs.js` from the package's `dist/` directory. The build command copies them directly to your output's `assets/` folder.
+Uses the pre-built `docs.css` and `docs.js` from the package's `dist/` directory. The build command copies them directly to your output's `assets/` folder. When a non-default theme is configured, the theme's CSS and JS are also copied from `dist/themes/`.
 
 **Pros:** No Node.js required, instant builds, zero configuration.
 
@@ -519,12 +544,16 @@ views/vendor/docs-builder/docs/
 │   ├── base.blade.php            # Root HTML document (head, scripts, styles)
 │   ├── documentation.blade.php   # Standard doc page (sidebar + content + TOC)
 │   └── api-reference.blade.php   # API reference page (API sidebar + content)
-└── partials/
-    ├── header.blade.php          # Top navigation bar (logo, nav links, search, theme toggle)
-    ├── sidebar.blade.php         # Left sidebar navigation
-    ├── toc.blade.php             # Right-side table of contents
-    ├── search-modal.blade.php    # Search command palette overlay
-    └── footer.blade.php          # Site footer
+├── partials/
+│   ├── header.blade.php          # Top navigation bar (logo, nav links, search, theme toggle)
+│   ├── sidebar.blade.php         # Left sidebar navigation
+│   ├── toc.blade.php             # Right-side table of contents
+│   ├── search-modal.blade.php    # Search command palette overlay
+│   └── footer.blade.php          # Site footer
+└── themes/
+    └── modern/docs/              # Modern theme overrides (same structure as above)
+        ├── layouts/
+        └── partials/
 ```
 
 ### Customizing Styles
