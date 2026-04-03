@@ -4,7 +4,7 @@
 
 ## Overview
 
-Docs Builder is a Laravel package (PHP 8.3+, Laravel 11.x/12.x/13.x) that takes Markdown files and an optional OpenAPI YAML spec from a `docs/` directory and generates a complete static documentation website in `public/docs/`. It provides server-side syntax highlighting, Mermaid diagram rendering, client-side full-text search (Fuse.js), dark/light theme toggle, a responsive 3-column layout, and an interactive API reference with "Try it out" panels. No Node.js or frontend build step is required — pre-compiled CSS and JS ship with the package.
+Docs Builder is a Laravel package (PHP 8.3+, Laravel 11.x/12.x/13.x) that takes Markdown files and an optional OpenAPI YAML spec from a `docs/` directory and generates a complete static documentation website in `public/docs/`. It ships with two visual themes (`default` and `modern`) switchable via a single config key. It provides server-side syntax highlighting, Mermaid diagram rendering, client-side full-text search (Fuse.js), dark/light theme toggle, a responsive 3-column layout, and an interactive API reference with "Try it out" panels. No Node.js or frontend build step is required — pre-compiled CSS and JS ship with the package.
 
 ## Quick Start
 
@@ -35,6 +35,7 @@ View the output at `public/docs/index.html` or `/docs` in your running app.
 - OpenAPI 3.x API reference generation with individual endpoint pages
 - Client-side full-text search via Fuse.js, triggered with Cmd+K / Ctrl+K
 - Dark/light theme toggle with OS preference detection
+- Multiple visual themes: `default` (cool blue) and `modern` (warm amber/gold, inspired by Mintlify/Laravel docs)
 - Responsive 3-column layout (sidebar, content, table of contents)
 - Pre-compiled assets (zero Node.js required) or optional Vite integration
 - Configurable branding: logo, header nav, Google Fonts, CSS theme overrides, footer
@@ -52,7 +53,7 @@ View the output at `public/docs/index.html` or `/docs` in your running app.
 - `MarkdownParser` — Converts Markdown to HTML using CommonMark + GFM + HeadingPermalink. Applies server-side syntax highlighting via Tempest Highlight. Processes Mermaid code blocks. Post-processes images (figure/caption, lazy loading, lightbox) and video URLs (YouTube/Vimeo auto-embeds, local video). Extracts headings, description, and plain text for search.
 - `OpenApiParser` — Parses OpenAPI 3.x YAML files using Symfony/Yaml. Extracts info, endpoints (grouped by tag), parameters, responses, security, and tag icons. Resolves `$ref` references.
 - `SearchIndexBuilder` — Accumulates page and endpoint entries. Generates `search-index.json` for client-side Fuse.js search.
-- `DocsBuilderServiceProvider` — Auto-discovered Laravel service provider. Registers config, views, commands, and seven publishable asset groups.
+- `DocsBuilderServiceProvider` — Auto-discovered Laravel service provider. Registers config, views, commands, and seven publishable asset groups. Prepends theme view paths when a non-default theme is configured.
 
 ## Configuration
 
@@ -68,11 +69,13 @@ The config file is at `config/docs-builder.php`. Key settings:
 - `header_nav` — Custom header links or null for defaults
 - `fonts` — Google Fonts URLs array, or false to disable
 - `asset_mode` — `'precompiled'` (default) or `'vite'`
+- `theme_name` — Visual theme: `'default'` or `'modern'`
 - `theme` — CSS custom property overrides (18 available variables for colors)
 - `navigation` — Sidebar structure: array of sections, each with pages (title, file, icon, layout)
 - `api_tag_icons` — Maps OpenAPI tags to Material Symbols icon names
 - `api_navigation` — API sidebar structure (auto-generated from openapi.yaml if empty)
 - `footer` — Copyright text and links array
+- `support_url` — URL for "Contact Support" link in TOC sidebar (null to hide)
 
 ## Publishing
 

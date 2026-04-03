@@ -38,7 +38,11 @@ src/
 - `resources/views/docs/` — Blade templates (layouts + partials)
 - `resources/css/docs.css` — Tailwind CSS v4 source (710 lines)
 - `resources/js/docs.js` — Client-side JS source (search, theme toggle, code copy, Mermaid)
+- `resources/css/themes/` — Theme-specific CSS source files
+- `resources/js/themes/` — Theme-specific JS source files
+- `resources/views/themes/` — Theme-specific Blade template overrides
 - `stubs/` — Scaffold templates for `docs:init`
+- `stubs/ai/` — AI tool configuration stubs
 - `tests/Feature/` — Pest test suite
 
 ## Code Style
@@ -95,6 +99,16 @@ src/
 1. Add a new `$this->publishes([...], 'tag-name')` call in `DocsBuilderServiceProvider::boot()`.
 2. Document the tag in the README Publishing section.
 
+### Adding a new theme
+
+1. Create theme CSS at `resources/css/themes/{name}.css` (use `resources/css/themes/modern.css` as reference).
+2. Create theme JS at `resources/js/themes/{name}.js` (use `resources/js/themes/modern.js` as reference).
+3. Add Vite entry points in `vite.config.js` for the new theme's CSS and JS.
+4. Create Blade template overrides at `resources/views/themes/{name}/docs/` — only override templates that differ from the default.
+5. The service provider auto-detects theme directories via the `theme_name` config key — no registration code needed.
+6. Run `npm run build` to compile pre-compiled assets to `dist/themes/`.
+7. Ensure all data-attribute contracts are preserved: `data-search-trigger`, `data-theme-toggle`, `data-theme-icon`, `data-copy-code`, `data-mermaid-zoom-in/out/reset/fullscreen`, and standard element IDs.
+
 ## Important Conventions
 
 - **Asset files in `dist/` are generated** — never edit them directly. Edit `resources/css/docs.css` or `resources/js/docs.js` and run `npm run build`.
@@ -104,6 +118,7 @@ src/
 - **No routes** — this package produces static HTML files. There are no Laravel routes.
 - **No models/migrations** — this package has no database interaction.
 - **The `package.json` is private** — it's for internal asset compilation only. End users never run `npm install`.
+- **Theme architecture** — Themes use view-namespace prepending. When `theme_name` is not `'default'`, the service provider prepends the theme's view directory so Laravel resolves theme views first, falling back to default for any missing files. Theme CSS/JS live in `resources/css/themes/` and `resources/js/themes/`, compiled to `dist/themes/`.
 
 ## Dependencies to Be Aware Of
 
