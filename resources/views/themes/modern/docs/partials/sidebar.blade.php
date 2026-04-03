@@ -1,6 +1,6 @@
 {{-- Modern Theme — Left Sidebar Navigation --}}
-<aside class="w-[260px] shrink-0 hidden lg:flex flex-col docs-sidebar sticky top-16 h-[calc(100vh-64px)] overflow-y-auto docs-thin-scrollbar">
-    <nav class="flex flex-col gap-7 p-5 pt-6">
+<aside class="w-[240px] shrink-0 hidden lg:flex flex-col docs-sidebar sticky top-16 h-[calc(100vh-64px)] overflow-y-auto docs-thin-scrollbar">
+    <nav class="flex flex-col gap-7 p-4 pt-6">
         @foreach($navigation as $section)
         <div>
             <h3 class="docs-sidebar-section-title px-3 mb-2.5">{{ $section['title'] }}</h3>

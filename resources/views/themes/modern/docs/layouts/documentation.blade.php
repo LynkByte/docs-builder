@@ -7,7 +7,7 @@
 
     {{-- Main Content --}}
     <main id="main-content" class="flex-1 min-w-0 pb-20">
-        <div class="max-w-[720px] mx-auto px-6 lg:px-10 pt-8">
+        <div class="max-w-[800px] mx-auto px-6 lg:px-10 pt-8">
             {{-- Breadcrumbs --}}
             @if(!empty($breadcrumbs))
             <nav class="flex items-center gap-1.5 mb-6" aria-label="Breadcrumb">
