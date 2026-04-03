@@ -91,44 +91,55 @@
             <article class="docs-content">
                 {!! $content !!}
 
-                {{-- Parameters Table (auto-generated from OpenAPI) --}}
-                @if(!empty($parameters))
-                <div class="mb-12">
-                    <h3 class="text-xl font-bold mb-6 flex items-center gap-2">
-                        Request Body
-                        <span class="text-xs font-normal text-[var(--docs-text-muted)] px-2 py-0.5 border border-[var(--docs-border)] rounded">application/json</span>
-                    </h3>
-                    <div class="border border-[var(--docs-border)] rounded-xl overflow-hidden">
-                        <table class="w-full text-left text-sm">
-                            <thead class="bg-[var(--docs-bg-secondary)] border-b border-[var(--docs-border)]">
-                                <tr>
-                                    <th class="px-6 py-4 font-bold text-[var(--docs-text)]">Parameter</th>
-                                    <th class="px-6 py-4 font-bold text-[var(--docs-text)]">Type</th>
-                                    <th class="px-6 py-4 font-bold text-[var(--docs-text)]">Description</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-[var(--docs-border)]">
-                                @foreach($parameters as $param)
-                                <tr>
-                                    <td class="px-6 py-5">
-                                        <div class="flex flex-col">
-                                            <span class="font-mono font-bold text-[var(--docs-text)]">{{ $param['name'] }}</span>
-                                            @if($param['required'] ?? false)
-                                            <span class="text-[10px] font-bold text-red-500 uppercase mt-1 tracking-wider">Required</span>
-                                            @endif
-                                        </div>
-                                    </td>
-                                    <td class="px-6 py-5">
-                                        <span class="px-2 py-1 bg-[var(--docs-bg-secondary)] rounded text-[var(--docs-text-muted)] font-mono text-xs">{{ $param['type'] }}</span>
-                                    </td>
-                                    <td class="px-6 py-5 text-[var(--docs-text-secondary)] leading-relaxed">{{ $param['description'] ?? '' }}</td>
-                                </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
+                {{-- Parameters Tables (grouped by location) --}}
+                @php
+                    $paramSections = [
+                        ['params' => $pathParameters ?? [], 'title' => 'Path Parameters', 'badge' => null],
+                        ['params' => $queryParameters ?? [], 'title' => 'Query Parameters', 'badge' => null],
+                        ['params' => $bodyParameters ?? [], 'title' => 'Request Body', 'badge' => 'application/json'],
+                    ];
+                @endphp
+                @foreach($paramSections as $section)
+                    @if(!empty($section['params']))
+                    <div class="mb-12">
+                        <h3 class="text-xl font-bold mb-6 flex items-center gap-2">
+                            {{ $section['title'] }}
+                            @if($section['badge'])
+                            <span class="text-xs font-normal text-[var(--docs-text-muted)] px-2 py-0.5 border border-[var(--docs-border)] rounded">{{ $section['badge'] }}</span>
+                            @endif
+                        </h3>
+                        <div class="border border-[var(--docs-border)] rounded-xl overflow-hidden">
+                            <table class="w-full text-left text-sm">
+                                <thead class="bg-[var(--docs-bg-secondary)] border-b border-[var(--docs-border)]">
+                                    <tr>
+                                        <th class="px-6 py-4 font-bold text-[var(--docs-text)]">Parameter</th>
+                                        <th class="px-6 py-4 font-bold text-[var(--docs-text)]">Type</th>
+                                        <th class="px-6 py-4 font-bold text-[var(--docs-text)]">Description</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-[var(--docs-border)]">
+                                    @foreach($section['params'] as $param)
+                                    <tr>
+                                        <td class="px-6 py-5">
+                                            <div class="flex flex-col">
+                                                <span class="font-mono font-bold text-[var(--docs-text)]">{{ $param['name'] }}</span>
+                                                @if($param['required'] ?? false)
+                                                <span class="text-[10px] font-bold text-red-500 uppercase mt-1 tracking-wider">Required</span>
+                                                @endif
+                                            </div>
+                                        </td>
+                                        <td class="px-6 py-5">
+                                            <span class="px-2 py-1 bg-[var(--docs-bg-secondary)] rounded text-[var(--docs-text-muted)] font-mono text-xs">{{ $param['type'] }}</span>
+                                        </td>
+                                        <td class="px-6 py-5 text-[var(--docs-text-secondary)] leading-relaxed">{{ $param['description'] ?? '' }}</td>
+                                    </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
-                </div>
-                @endif
+                    @endif
+                @endforeach
 
                 {{-- Responses (auto-generated from OpenAPI) --}}
                 @if(!empty($responses))
@@ -178,12 +189,12 @@
                     <div class="docs-code-block space-y-1">
                         <code>
                             <div><span class="text-[var(--color-primary)]">curl</span> --request {{ strtoupper($endpointMethod) }} \</div>
-                            <div class="pl-4">--url http://localhost:8000/api/v1{{ $endpointPath }} \</div>
+                            <div class="pl-4">--url {{ rtrim($apiServerUrl ?? 'http://localhost:8000/api/v1', '/') }}{{ $endpointPath }} \</div>
                             <div class="pl-4">--header <span class="text-green-400">'Authorization: Bearer &lt;TOKEN&gt;'</span> \</div>
-                            <div class="pl-4">--header <span class="text-green-400">'Content-Type: application/json'</span>@if(!empty($parameters)) \@endif</div>
-                            @if(!empty($parameters))
+                            <div class="pl-4">--header <span class="text-green-400">'Content-Type: application/json'</span>@if(!empty($bodyParameters)) \@endif</div>
+                            @if(!empty($bodyParameters))
                             <div class="pl-4">--data <span class="text-orange-400">'{</span></div>
-                            @foreach($parameters as $i => $param)
+                            @foreach($bodyParameters as $param)
                             <div class="pl-8 text-orange-400">"{{ $param['name'] }}": "{{ $param['example'] ?? '' }}"{{ !$loop->last ? ',' : '' }}</div>
                             @endforeach
                             <div class="pl-4 text-orange-400">}'</div>
@@ -193,11 +204,11 @@
                 </div>
             </div>
             <div class="space-y-6">
-                @if(!empty($parameters))
+                @if(!empty($bodyParameters))
                 <div>
                     <span class="text-xs font-bold uppercase tracking-widest text-slate-500 mb-3 block">Body Parameters</span>
                     <div class="space-y-3">
-                        @foreach($parameters as $param)
+                        @foreach($bodyParameters as $param)
                         <div>
                             <label class="block text-[10px] font-bold text-slate-500 mb-1">{{ strtoupper($param['name']) }}</label>
                             <input type="text" class="w-full bg-slate-800 border-none rounded text-xs py-2 px-3 text-white focus:ring-1 focus:ring-[var(--color-primary)]" value="{{ $param['example'] ?? '' }}" placeholder="{{ $param['description'] ?? '' }}">

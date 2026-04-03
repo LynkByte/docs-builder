@@ -138,6 +138,54 @@ paths:
                   name: John Doe
                   email: john@example.com
 
+  /user/{id}:
+    put:
+      tags:
+        - User
+      operationId: updateUser
+      summary: Update user
+      description: Updates a user by ID.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The user ID
+          schema:
+            type: integer
+            example: 1
+        - name: include
+          in: query
+          required: false
+          description: Related resources to include
+          schema:
+            type: string
+            example: posts
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  description: The user's full name
+                  example: Jane Doe
+                email:
+                  type: string
+                  format: email
+                  description: The user's email address
+                  example: jane@example.com
+      responses:
+        '200':
+          description: User updated successfully
+        '404':
+          description: User not found
+
 components:
   securitySchemes:
     bearerAuth:

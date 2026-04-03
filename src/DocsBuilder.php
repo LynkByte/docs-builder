@@ -336,6 +336,9 @@ class DocsBuilder
             'endpointMethod' => null,
             'endpointPath' => null,
             'parameters' => [],
+            'pathParameters' => [],
+            'queryParameters' => [],
+            'bodyParameters' => [],
             'responses' => [],
             'currentEndpoint' => null,
         ]);
@@ -388,6 +391,9 @@ class DocsBuilder
                     'endpointMethod' => $endpoint['method'],
                     'endpointPath' => $endpoint['path'],
                     'parameters' => $endpoint['parameters'],
+                    'pathParameters' => $endpoint['pathParameters'],
+                    'queryParameters' => $endpoint['queryParameters'],
+                    'bodyParameters' => $endpoint['bodyParameters'],
                     'responses' => $endpoint['responses'],
                     'currentEndpoint' => $endpoint['operationId'],
                 ]);

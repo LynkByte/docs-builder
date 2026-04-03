@@ -49,9 +49,9 @@ it('generates a valid search index', function () {
 });
 
 it('outputs the correct page count', function () {
-    // 3 doc pages (README, installation, api-reference) + 4 API endpoint pages = 7
+    // 3 doc pages (README, installation, api-reference) + 5 API endpoint pages = 8
     $this->artisan('docs:build', ['--skip-assets' => true])
-        ->expectsOutputToContain('Pages built: 7')
+        ->expectsOutputToContain('Pages built: 8')
         ->assertSuccessful();
 });
 
@@ -72,6 +72,9 @@ it('parses the OpenAPI spec only once during build', function () {
                         'method' => 'GET',
                         'path' => '/users',
                         'parameters' => [],
+                        'pathParameters' => [],
+                        'queryParameters' => [],
+                        'bodyParameters' => [],
                         'responses' => [],
                     ],
                 ],

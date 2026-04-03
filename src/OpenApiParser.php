@@ -98,13 +98,18 @@ class OpenApiParser
      */
     private function buildEndpoint(string $path, string $method, array $operation): array
     {
+        $allParameters = $this->extractParameters($operation);
+
         return [
             'path' => $path,
             'method' => strtoupper($method),
             'operationId' => $operation['operationId'] ?? $this->generateOperationId($path, $method),
             'summary' => $operation['summary'] ?? '',
             'description' => $operation['description'] ?? '',
-            'parameters' => $this->extractParameters($operation),
+            'parameters' => $allParameters,
+            'pathParameters' => array_values(array_filter($allParameters, fn (array $p) => ($p['in'] ?? '') === 'path')),
+            'queryParameters' => array_values(array_filter($allParameters, fn (array $p) => ($p['in'] ?? '') === 'query')),
+            'bodyParameters' => array_values(array_filter($allParameters, fn (array $p) => ($p['in'] ?? '') === 'body')),
             'responses' => $this->extractResponses($operation),
             'security' => $this->extractSecurity($operation),
             'url' => '', // Will be set by DocsBuilder
