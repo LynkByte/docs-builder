@@ -482,7 +482,8 @@ class MarkdownParser
     private function htmlToPlainText(string $html): string
     {
         // Remove code blocks entirely (not useful for search summaries)
-        $text = preg_replace('/<pre[^>]*>.*?<\/pre>/s', '', $html);
+        $text = preg_replace('/<pre[^>]*>.*?<\/pre>/s', '', $html) ?? '';
+        $text = preg_replace('/\s+/', ' ', $text) ?? '';
 
         // Strip HTML tags
         $text = strip_tags($text);
