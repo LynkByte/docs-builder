@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\File;
+use InvalidArgumentException;
 use LynkByte\DocsBuilder\DocsBuilder;
 
 beforeEach(function () {
@@ -18,14 +19,14 @@ it('throws when source_dir is missing', function () {
         'output_dir' => '/tmp/output',
         'base_url' => '/docs',
     ]);
-})->throws(\InvalidArgumentException::class, 'source_dir');
+})->throws(InvalidArgumentException::class, 'source_dir');
 
 it('throws when output_dir is missing', function () {
     new DocsBuilder(config: [
         'source_dir' => '/tmp/source',
         'base_url' => '/docs',
     ]);
-})->throws(\InvalidArgumentException::class, 'output_dir');
+})->throws(InvalidArgumentException::class, 'output_dir');
 
 it('defaults base_url to /docs when missing', function () {
     $builder = new DocsBuilder(config: [
