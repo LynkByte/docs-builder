@@ -92,7 +92,7 @@ final class Endpoint implements \ArrayAccess
 
     public function offsetGet(mixed $offset): mixed
     {
-        return $this->{$offset};
+        return property_exists($this, $offset) ? $this->{$offset} : null;
     }
 
     public function offsetSet(mixed $offset, mixed $value): void

@@ -84,12 +84,7 @@ class MarkdownParser implements MarkdownParserInterface
         $markdown = file_get_contents($filePath);
 
         if ($markdown === false) {
-            return [
-                'html' => '',
-                'headings' => [],
-                'description' => '',
-                'plainText' => '',
-            ];
+            throw new \RuntimeException("Unable to read markdown file [{$filePath}].");
         }
 
         // Extract front matter if present (---\n...\n---)

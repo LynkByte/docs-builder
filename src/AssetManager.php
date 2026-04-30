@@ -130,7 +130,17 @@ class AssetManager
             throw new \RuntimeException('Vite manifest not found. Run `npm run build` first.');
         }
 
-        $manifest = json_decode(file_get_contents($manifestPath), true);
+        $manifestContent = file_get_contents($manifestPath);
+
+        if ($manifestContent === false) {
+            throw new \RuntimeException("Unable to read Vite manifest at [{$manifestPath}].");
+        }
+
+        $manifest = json_decode($manifestContent, true);
+
+        if ($manifest === null) {
+            throw new \RuntimeException('Failed to decode Vite manifest: '.json_last_error_msg());
+        }
 
         // Resolve theme-specific entries first, falling back to default
         $cssKey = null;

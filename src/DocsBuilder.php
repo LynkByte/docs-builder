@@ -85,11 +85,8 @@ class DocsBuilder
         // Clean output directory
         $this->cleanOutput();
 
-        // Build navigation with slugs and URLs
+        // Build navigation with slugs and URLs (also populates flat page list for prev/next)
         $navigation = $this->navigationBuilder->build();
-
-        // Build flat page list for prev/next navigation
-        $this->navigationBuilder->buildFlatPageList($navigation);
 
         // Build documentation pages
         foreach ($navigation as $section) {
@@ -452,7 +449,7 @@ class DocsBuilder
                 $fragment = $matches[3] ?? '';
 
                 // Skip external / absolute URLs
-                if (preg_match('#^(https?://|//|mailto:|tel:)#i', $href)) {
+                if (preg_match('#^(https?://|//|/|mailto:|tel:)#i', $href)) {
                     return $matches[0];
                 }
 

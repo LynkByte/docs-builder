@@ -2,6 +2,18 @@
 
 use LynkByte\DocsBuilder\AssetManager;
 
+beforeEach(function () {
+    $this->tempFiles = [];
+});
+
+afterEach(function () {
+    foreach ($this->tempFiles as $file) {
+        if (is_file($file)) {
+            unlink($file);
+        }
+    }
+});
+
 /**
  * Call a private method on an object via Reflection.
  *
@@ -110,27 +122,25 @@ it('rewrites relative parent imports to same-directory imports', function () {
     $manager = new AssetManager(outputDir: sys_get_temp_dir(), assetMode: 'precompiled', themeName: 'modern');
 
     $tmpFile = sys_get_temp_dir().'/docs-builder-test-'.uniqid().'.js';
+    $this->tempFiles[] = $tmpFile;
     file_put_contents($tmpFile, 'import{f as e}from"../fuse-DkR3xFBI.js";');
 
     callPrivate($manager, 'fixRelativeImports', [$tmpFile]);
 
     expect(file_get_contents($tmpFile))->toBe('import{f as e}from"./fuse-DkR3xFBI.js";');
-
-    unlink($tmpFile);
 });
 
 it('leaves file unchanged when no relative parent imports exist', function () {
     $manager = new AssetManager(outputDir: sys_get_temp_dir(), assetMode: 'precompiled');
 
     $tmpFile = sys_get_temp_dir().'/docs-builder-test-'.uniqid().'.js';
+    $this->tempFiles[] = $tmpFile;
     $original = 'import{f as e}from"./fuse-DkR3xFBI.js";';
     file_put_contents($tmpFile, $original);
 
     callPrivate($manager, 'fixRelativeImports', [$tmpFile]);
 
     expect(file_get_contents($tmpFile))->toBe($original);
-
-    unlink($tmpFile);
 });
 
 it('does nothing when fixRelativeImports target file does not exist', function () {

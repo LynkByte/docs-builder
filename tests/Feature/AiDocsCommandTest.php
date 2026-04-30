@@ -201,7 +201,7 @@ it('handles file with only start marker and no end marker gracefully', function 
 });
 
 it('preserves content before and after markers when force-replacing with surrounding whitespace', function () {
-    $content = "# Title\n\n<!-- docs-builder:start -->\nOld\n<!-- docs-builder:end -->\n";
+    $content = "# Title\n\n<!-- docs-builder:start -->\nOld\n<!-- docs-builder:end -->\nTail content\n";
     file_put_contents(base_path('CLAUDE.md'), $content);
 
     $this->artisan('docs:ai', ['--force' => true])
@@ -212,7 +212,8 @@ it('preserves content before and after markers when force-replacing with surroun
     expect($updated)->toStartWith('# Title')
         ->and($updated)->toContain('<!-- docs-builder:start -->')
         ->and($updated)->toContain('<!-- docs-builder:end -->')
-        ->and($updated)->not->toContain('Old');
+        ->and($updated)->not->toContain('Old')
+        ->and($updated)->toContain('Tail content');
 });
 
 it('appends to empty file without errors', function () {
@@ -235,14 +236,15 @@ it('uses published stubs when available', function () {
 
     file_put_contents($stubDir.'/CLAUDE.md', "Custom stub content\n");
 
-    $this->artisan('docs:ai')
-        ->assertSuccessful();
+    try {
+        $this->artisan('docs:ai')
+            ->assertSuccessful();
 
-    $content = file_get_contents(base_path('CLAUDE.md'));
-    expect($content)->toContain('Custom stub content');
-
-    // Cleanup
-    \Illuminate\Support\Facades\File::deleteDirectory(base_path('stubs'));
+        $content = file_get_contents(base_path('CLAUDE.md'));
+        expect($content)->toContain('Custom stub content');
+    } finally {
+        \Illuminate\Support\Facades\File::deleteDirectory(base_path('stubs/docs-builder'));
+    }
 });
 
 // ── replaceMarkedSection edge cases ──────────────────────────────────

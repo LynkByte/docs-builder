@@ -69,7 +69,11 @@ it('flattens nested navigation into a flat page list', function () {
 
     $builder = new NavigationBuilder($config, '/docs');
     $navigation = $builder->build();
-    $flat = $builder->buildFlatPageList($navigation);
+
+    $flat = array_merge(
+        $navigation[0]['pages'],
+        $navigation[1]['pages'],
+    );
 
     expect($flat)->toHaveCount(3)
         ->and($flat[0]->title)->toBe('Page 1')
@@ -92,8 +96,7 @@ it('returns correct prev and next for a middle page', function () {
     ];
 
     $builder = new NavigationBuilder($config, '/docs');
-    $navigation = $builder->build();
-    $builder->buildFlatPageList($navigation);
+    $builder->build();
 
     [$prev, $next] = $builder->getPrevNextPages('middle');
 
@@ -115,8 +118,7 @@ it('returns null prev for the first page', function () {
     ];
 
     $builder = new NavigationBuilder($config, '/docs');
-    $navigation = $builder->build();
-    $builder->buildFlatPageList($navigation);
+    $builder->build();
 
     [$prev, $next] = $builder->getPrevNextPages('first');
 
@@ -138,8 +140,7 @@ it('returns null next for the last page', function () {
     ];
 
     $builder = new NavigationBuilder($config, '/docs');
-    $navigation = $builder->build();
-    $builder->buildFlatPageList($navigation);
+    $builder->build();
 
     [$prev, $next] = $builder->getPrevNextPages('last');
 

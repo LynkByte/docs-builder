@@ -2,6 +2,16 @@
 
 use LynkByte\DocsBuilder\DocsBuilder;
 
+beforeEach(function () {
+    $this->outputDir = sys_get_temp_dir().'/docs-builder-config-test-'.uniqid();
+});
+
+afterEach(function () {
+    if (is_dir($this->outputDir)) {
+        \Illuminate\Support\Facades\File::deleteDirectory($this->outputDir);
+    }
+});
+
 it('throws when source_dir is missing', function () {
     new DocsBuilder(config: [
         'output_dir' => '/tmp/output',
@@ -19,7 +29,7 @@ it('throws when output_dir is missing', function () {
 it('defaults base_url to /docs when missing', function () {
     $builder = new DocsBuilder(config: [
         'source_dir' => __DIR__.'/../fixtures/docs',
-        'output_dir' => sys_get_temp_dir().'/docs-builder-config-test-'.uniqid(),
+        'output_dir' => $this->outputDir,
         'site_name' => 'Test',
         'site_description' => 'Test',
         'openapi_file' => __DIR__.'/../fixtures/docs/openapi.yaml',
@@ -41,7 +51,7 @@ it('defaults base_url to /docs when missing', function () {
 it('handles empty navigation config gracefully', function () {
     $builder = new DocsBuilder(config: [
         'source_dir' => __DIR__.'/../fixtures/docs',
-        'output_dir' => sys_get_temp_dir().'/docs-builder-config-test-'.uniqid(),
+        'output_dir' => $this->outputDir,
         'site_name' => 'Test',
         'site_description' => 'Test',
         'openapi_file' => '/nonexistent/openapi.yaml',

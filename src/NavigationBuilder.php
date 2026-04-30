@@ -36,6 +36,7 @@ class NavigationBuilder
     public function build(): array
     {
         $navigation = [];
+        $this->flatPages = [];
 
         foreach ($this->config['navigation'] ?? [] as $section) {
             $builtSection = [
@@ -48,7 +49,7 @@ class NavigationBuilder
                 $url = $this->slugToUrl($slug);
                 $layout = $page['layout'] ?? DocsBuilder::LAYOUT_DOCUMENTATION;
 
-                $builtSection['pages'][] = new Page(
+                $pageObj = new Page(
                     title: $page['title'],
                     file: $page['file'],
                     slug: $slug,
@@ -56,32 +57,15 @@ class NavigationBuilder
                     icon: $page['icon'] ?? null,
                     layout: $layout,
                 );
+
+                $builtSection['pages'][] = $pageObj;
+                $this->flatPages[] = $pageObj;
             }
 
             $navigation[] = $builtSection;
         }
 
         return $navigation;
-    }
-
-    /**
-     * Build a flat list of pages for prev/next navigation.
-     *
-     * @param  array<int, NavigationSection>  $navigation
-     * @return array<int, Page>
-     */
-    public function buildFlatPageList(array $navigation): array
-    {
-        $pages = [];
-        foreach ($navigation as $section) {
-            foreach ($section['pages'] ?? [] as $page) {
-                $pages[] = $page;
-            }
-        }
-
-        $this->flatPages = $pages;
-
-        return $pages;
     }
 
     /**

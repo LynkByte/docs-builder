@@ -5,6 +5,15 @@ use LynkByte\DocsBuilder\OpenApiParser;
 beforeEach(function () {
     $this->parser = new OpenApiParser;
     $this->specFile = __DIR__.'/../fixtures/docs/openapi.yaml';
+    $this->tempSpecFiles = [];
+});
+
+afterEach(function () {
+    foreach ($this->tempSpecFiles as $file) {
+        if (is_file($file)) {
+            unlink($file);
+        }
+    }
 });
 
 it('parses the openapi yaml file', function () {
@@ -128,6 +137,7 @@ it('returns empty data for missing file', function () {
 it('resolves nested ref chains', function () {
     // Schema A -> Schema B -> Schema C (two levels of $ref)
     $specFile = tempnam(sys_get_temp_dir(), 'openapi_nested_').'.yaml';
+    $this->tempSpecFiles[] = $specFile;
     file_put_contents($specFile, <<<'YAML'
 openapi: '3.0.3'
 info:
@@ -172,7 +182,6 @@ components:
 YAML);
 
     $result = $this->parser->parse($specFile);
-    unlink($specFile);
 
     $endpoint = $result['endpoints']['Test'][0];
     $bodyParams = $endpoint['bodyParameters'];
@@ -185,6 +194,7 @@ YAML);
 
 it('handles circular refs without infinite loop', function () {
     $specFile = tempnam(sys_get_temp_dir(), 'openapi_circular_').'.yaml';
+    $this->tempSpecFiles[] = $specFile;
     file_put_contents($specFile, <<<'YAML'
 openapi: '3.0.3'
 info:
@@ -223,7 +233,6 @@ components:
 YAML);
 
     $result = $this->parser->parse($specFile);
-    unlink($specFile);
 
     $endpoint = $result['endpoints']['Test'][0];
     $bodyParams = $endpoint['bodyParameters'];
@@ -235,6 +244,7 @@ YAML);
 
 it('resolves refs inside allOf oneOf anyOf compositions', function () {
     $specFile = tempnam(sys_get_temp_dir(), 'openapi_composition_').'.yaml';
+    $this->tempSpecFiles[] = $specFile;
     file_put_contents($specFile, <<<'YAML'
 openapi: '3.0.3'
 info:
@@ -289,7 +299,6 @@ components:
 YAML);
 
     $result = $this->parser->parse($specFile);
-    unlink($specFile);
 
     $endpoint = $result['endpoints']['Test'][0];
 
@@ -299,6 +308,7 @@ YAML);
 
 it('resolves refs in response schemas', function () {
     $specFile = tempnam(sys_get_temp_dir(), 'openapi_resp_ref_').'.yaml';
+    $this->tempSpecFiles[] = $specFile;
     file_put_contents($specFile, <<<'YAML'
 openapi: '3.0.3'
 info:
@@ -331,7 +341,6 @@ components:
 YAML);
 
     $result = $this->parser->parse($specFile);
-    unlink($specFile);
 
     $endpoint = $result['endpoints']['Test'][0];
 
@@ -341,6 +350,7 @@ YAML);
 
 it('resolves refs in array items', function () {
     $specFile = tempnam(sys_get_temp_dir(), 'openapi_items_ref_').'.yaml';
+    $this->tempSpecFiles[] = $specFile;
     file_put_contents($specFile, <<<'YAML'
 openapi: '3.0.3'
 info:
@@ -379,7 +389,6 @@ components:
 YAML);
 
     $result = $this->parser->parse($specFile);
-    unlink($specFile);
 
     $endpoint = $result['endpoints']['Test'][0];
     $tagsParam = collect($endpoint['bodyParameters'])->firstWhere('name', 'tags');
