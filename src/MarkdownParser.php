@@ -7,32 +7,35 @@ use League\CommonMark\Extension\CommonMark\CommonMarkCoreExtension;
 use League\CommonMark\Extension\GithubFlavoredMarkdownExtension;
 use League\CommonMark\Extension\HeadingPermalink\HeadingPermalinkExtension;
 use League\CommonMark\MarkdownConverter;
+use LynkByte\DocsBuilder\Contracts\MarkdownParserInterface;
 use Tempest\Highlight\Highlighter;
 
-class MarkdownParser
+class MarkdownParser implements MarkdownParserInterface
 {
     private MarkdownConverter $converter;
 
     private Highlighter $highlighter;
 
-    /** @var array<string, string> */
-    private array $languageExtensions = [
-        'php' => 'php',
-        'blade' => 'blade',
-        'html' => 'html',
-        'css' => 'css',
-        'javascript' => 'javascript',
-        'js' => 'javascript',
-        'json' => 'json',
-        'bash' => 'bash',
-        'shell' => 'bash',
-        'sh' => 'bash',
-        'sql' => 'sql',
-        'yaml' => 'yaml',
-        'yml' => 'yaml',
-        'xml' => 'xml',
-        'typescript' => 'typescript',
-        'ts' => 'typescript',
+    private MarkdownPostProcessor $postProcessor;
+
+    /** @var array<string, array{highlight: string, label: string}> */
+    private array $languageMap = [
+        'php' => ['highlight' => 'php', 'label' => 'PHP'],
+        'blade' => ['highlight' => 'blade', 'label' => 'Blade'],
+        'html' => ['highlight' => 'html', 'label' => 'HTML'],
+        'css' => ['highlight' => 'css', 'label' => 'CSS'],
+        'javascript' => ['highlight' => 'javascript', 'label' => 'JavaScript'],
+        'js' => ['highlight' => 'javascript', 'label' => 'JavaScript'],
+        'json' => ['highlight' => 'json', 'label' => 'JSON'],
+        'bash' => ['highlight' => 'bash', 'label' => 'Terminal'],
+        'shell' => ['highlight' => 'bash', 'label' => 'Terminal'],
+        'sh' => ['highlight' => 'bash', 'label' => 'Terminal'],
+        'sql' => ['highlight' => 'sql', 'label' => 'SQL'],
+        'yaml' => ['highlight' => 'yaml', 'label' => 'YAML'],
+        'yml' => ['highlight' => 'yaml', 'label' => 'YAML'],
+        'xml' => ['highlight' => 'xml', 'label' => 'XML'],
+        'typescript' => ['highlight' => 'typescript', 'label' => 'TypeScript'],
+        'ts' => ['highlight' => 'typescript', 'label' => 'TypeScript'],
     ];
 
     public function __construct()
@@ -59,6 +62,7 @@ class MarkdownParser
 
         $this->converter = new MarkdownConverter($environment);
         $this->highlighter = new Highlighter;
+        $this->postProcessor = new MarkdownPostProcessor;
     }
 
     /**
@@ -79,6 +83,10 @@ class MarkdownParser
 
         $markdown = file_get_contents($filePath);
 
+        if ($markdown === false) {
+            throw new \RuntimeException("Unable to read markdown file [{$filePath}].");
+        }
+
         // Extract front matter if present (---\n...\n---)
         $markdown = $this->stripFrontMatter($markdown);
 
@@ -86,33 +94,7 @@ class MarkdownParser
         $rendered = $this->converter->convert($markdown);
         $html = $rendered->getContent();
 
-        // Apply syntax highlighting and styled code block wrappers
-        $html = $this->postProcessCodeBlocks($html);
-
-        // Wrap tables in a scrollable container to prevent overflow
-        $html = $this->postProcessTables($html);
-
-        // Convert video URLs to responsive embeds
-        $html = $this->postProcessVideos($html);
-
-        // Wrap standalone images in <figure> and add lazy loading
-        $html = $this->postProcessImages($html);
-
-        // Extract headings from the rendered HTML
-        $headings = $this->extractHeadings($html);
-
-        // Extract first paragraph as description
-        $description = $this->extractDescription($html);
-
-        // Generate plain text for search indexing
-        $plainText = $this->htmlToPlainText($html);
-
-        return [
-            'html' => $html,
-            'headings' => $headings,
-            'description' => $description,
-            'plainText' => $plainText,
-        ];
+        return $this->processHtml($html);
     }
 
     /**
@@ -127,17 +109,20 @@ class MarkdownParser
         $rendered = $this->converter->convert($markdown);
         $html = $rendered->getContent();
 
-        // Apply syntax highlighting and styled code block wrappers
-        $html = $this->postProcessCodeBlocks($html);
+        return $this->processHtml($html);
+    }
 
-        // Wrap tables in a scrollable container to prevent overflow
-        $html = $this->postProcessTables($html);
-
-        // Convert video URLs to responsive embeds
-        $html = $this->postProcessVideos($html);
-
-        // Wrap standalone images in <figure> and add lazy loading
-        $html = $this->postProcessImages($html);
+    /**
+     * Apply the shared post-processing pipeline to rendered HTML.
+     *
+     * @return array{html: string, headings: array<int, array{id: string, text: string, level: int}>, description: string, plainText: string}
+     */
+    private function processHtml(string $html): array
+    {
+        $html = $this->postProcessor->processCodeBlocks($html, $this->highlighter, $this->languageMap);
+        $html = $this->postProcessor->processTables($html);
+        $html = $this->postProcessor->processVideos($html);
+        $html = $this->postProcessor->processImages($html);
 
         return [
             'html' => $html,
@@ -160,269 +145,6 @@ class MarkdownParser
         }
 
         return $markdown;
-    }
-
-    /**
-     * Post-process code blocks: apply syntax highlighting and wrap in styled container.
-     */
-    private function postProcessCodeBlocks(string $html): string
-    {
-        // Convert mermaid code blocks into client-side rendered diagrams
-        $html = preg_replace_callback(
-            '/<pre><code class="language-mermaid">(.*?)<\/code><\/pre>/s',
-            function (array $matches): string {
-                $rawCode = html_entity_decode($matches[1], ENT_QUOTES | ENT_HTML5, 'UTF-8');
-
-                return '<div class="docs-mermaid-block">'
-                    .'<div class="docs-mermaid-toolbar">'
-                    .'<button data-mermaid-zoom-in title="Zoom in"><span class="material-symbols-outlined">zoom_in</span></button>'
-                    .'<button data-mermaid-zoom-out title="Zoom out"><span class="material-symbols-outlined">zoom_out</span></button>'
-                    .'<button data-mermaid-reset title="Reset zoom"><span class="material-symbols-outlined">fit_screen</span></button>'
-                    .'<button data-mermaid-pan title="Toggle pan"><span class="material-symbols-outlined">drag_pan</span></button>'
-                    .'<button data-mermaid-fullscreen title="Fullscreen"><span class="material-symbols-outlined">fullscreen</span></button>'
-                    .'</div>'
-                    .'<div class="docs-mermaid-content">'
-                    .'<pre class="mermaid">'.trim($rawCode).'</pre>'
-                    .'</div>'
-                    .'</div>';
-            },
-            $html
-        );
-
-        // Match <pre><code class="language-X">...</code></pre> blocks (with language)
-        $html = preg_replace_callback(
-            '/<pre><code class="language-([^"]+)">(.*?)<\/code><\/pre>/s',
-            function (array $matches): string {
-                $language = $matches[1];
-                $code = $matches[2];
-
-                return $this->buildStyledCodeBlock($code, $language);
-            },
-            $html
-        );
-
-        // Match plain <pre><code>...</code></pre> blocks (no language)
-        $html = preg_replace_callback(
-            '/<pre><code>(.*?)<\/code><\/pre>/s',
-            function (array $matches): string {
-                $code = $matches[1];
-
-                return $this->buildStyledCodeBlock($code);
-            },
-            $html
-        );
-
-        return $html;
-    }
-
-    /**
-     * Wrap tables in a scrollable container to prevent wide tables from overflowing.
-     */
-    private function postProcessTables(string $html): string
-    {
-        return preg_replace(
-            '/<table([\s\S]*?)<\/table>/',
-            '<div class="docs-table-wrapper"><table$1</table></div>',
-            $html
-        );
-    }
-
-    /**
-     * Post-process images: wrap standalone images in <figure> and add lazy loading.
-     */
-    private function postProcessImages(string $html): string
-    {
-        // Wrap standalone images (sole child of a <p>) in <figure> with optional <figcaption>
-        $html = preg_replace_callback(
-            '/<p>\s*(<img\s[^>]*\/?>)\s*<\/p>/',
-            function (array $matches): string {
-                $imgTag = $matches[1];
-
-                // Add loading="lazy" if not already present
-                if (! str_contains($imgTag, 'loading=')) {
-                    $imgTag = str_replace('<img ', '<img loading="lazy" ', $imgTag);
-                }
-
-                // Extract alt text for figcaption
-                $alt = '';
-                if (preg_match('/alt="([^"]*)"/', $imgTag, $altMatch)) {
-                    $alt = $altMatch[1];
-                }
-
-                $figure = '<figure class="docs-figure">'.$imgTag;
-                if ($alt !== '') {
-                    $figure .= '<figcaption>'.$alt.'</figcaption>';
-                }
-                $figure .= '</figure>';
-
-                return $figure;
-            },
-            $html
-        ) ?? $html;
-
-        // Add loading="lazy" to any remaining inline images not already processed
-        $html = preg_replace(
-            '/<img(?![^>]*loading=)([^>]*?)(\s*\/?>)/',
-            '<img loading="lazy"$1$2',
-            $html
-        ) ?? $html;
-
-        return $html;
-    }
-
-    /**
-     * Post-process video URLs: convert autolinked video URLs to responsive embeds.
-     */
-    private function postProcessVideos(string $html): string
-    {
-        // Match paragraphs containing only a single autolinked URL (href and text both start with http)
-        return preg_replace_callback(
-            '/<p>\s*<a href="(https?:\/\/[^"]+)">https?:\/\/[^<]+<\/a>\s*<\/p>/',
-            function (array $matches): string {
-                $url = html_entity_decode($matches[1], ENT_QUOTES | ENT_HTML5, 'UTF-8');
-
-                // YouTube: youtube.com/watch?v=ID, youtu.be/ID, youtube.com/embed/ID
-                if (preg_match('/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]+)/', $url, $m)) {
-                    return $this->buildYouTubeEmbed($m[1]);
-                }
-
-                // Vimeo: vimeo.com/ID, player.vimeo.com/video/ID
-                if (preg_match('/(?:vimeo\.com\/|player\.vimeo\.com\/video\/)(\d+)/', $url, $m)) {
-                    return $this->buildVimeoEmbed($m[1]);
-                }
-
-                // Local video files: .mp4, .webm, .ogg
-                if (preg_match('/\.(mp4|webm|ogg)(?:\?[^"]*)?$/i', $url)) {
-                    return $this->buildVideoElement($url);
-                }
-
-                // Not a recognized video URL, return unchanged
-                return $matches[0];
-            },
-            $html
-        ) ?? $html;
-    }
-
-    /**
-     * Build a responsive YouTube embed iframe.
-     */
-    private function buildYouTubeEmbed(string $videoId): string
-    {
-        return '<div class="docs-video-wrapper">'
-            .'<iframe src="https://www.youtube-nocookie.com/embed/'.$videoId.'"'
-            .' title="YouTube video player"'
-            .' allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"'
-            .' allowfullscreen></iframe>'
-            .'</div>';
-    }
-
-    /**
-     * Build a responsive Vimeo embed iframe.
-     */
-    private function buildVimeoEmbed(string $videoId): string
-    {
-        return '<div class="docs-video-wrapper">'
-            .'<iframe src="https://player.vimeo.com/video/'.$videoId.'"'
-            .' title="Vimeo video player"'
-            .' allow="autoplay; fullscreen; picture-in-picture"'
-            .' allowfullscreen></iframe>'
-            .'</div>';
-    }
-
-    /**
-     * Build a responsive HTML5 video element.
-     */
-    private function buildVideoElement(string $url): string
-    {
-        $escapedUrl = htmlspecialchars($url, ENT_QUOTES | ENT_HTML5, 'UTF-8');
-
-        return '<div class="docs-video-wrapper">'
-            .'<video src="'.$escapedUrl.'" controls preload="metadata"></video>'
-            .'</div>';
-    }
-
-    /**
-     * Build a styled code block with syntax highlighting and the wrapper matching the reference theme.
-     */
-    private function buildStyledCodeBlock(string $code, ?string $language = null): string
-    {
-        // Decode HTML entities back to raw code for the highlighter
-        $rawCode = html_entity_decode($code, ENT_QUOTES | ENT_HTML5, 'UTF-8');
-        $rawCode = trim($rawCode);
-
-        // Apply syntax highlighting if we have a supported language
-        if ($language !== null) {
-            $highlightLang = $this->resolveHighlightLanguage($language);
-
-            try {
-                $highlighted = $this->highlighter->parse($rawCode, $highlightLang);
-            } catch (\Throwable) {
-                // Fallback: re-encode and use plain text
-                $highlighted = htmlspecialchars($rawCode, ENT_QUOTES | ENT_HTML5, 'UTF-8');
-            }
-        } else {
-            $highlighted = htmlspecialchars($rawCode, ENT_QUOTES | ENT_HTML5, 'UTF-8');
-        }
-
-        // Determine the display filename for the header
-        $displayName = $this->getCodeBlockLabel($language);
-
-        // Build the wrapper HTML matching the reference theme structure
-        $header = '<div class="docs-code-header">'
-            .'<span>'.htmlspecialchars($displayName).'</span>'
-            .'<button class="docs-copy-btn" data-copy-code>'
-            .'<span class="material-symbols-outlined" style="font-size:14px;">content_copy</span>'
-            .'<span>Copy</span>'
-            .'</button>'
-            .'</div>';
-
-        return '<div class="docs-code-block">'
-            .$header
-            .'<div class="docs-code-body">'
-            .'<pre class="hl"><code>'.$highlighted.'</code></pre>'
-            .'</div>'
-            .'</div>';
-    }
-
-    /**
-     * Resolve the highlight language string for tempest/highlight.
-     */
-    private function resolveHighlightLanguage(string $language): string
-    {
-        $language = strtolower(trim($language));
-
-        return $this->languageExtensions[$language] ?? $language;
-    }
-
-    /**
-     * Get a display label for the code block header.
-     */
-    private function getCodeBlockLabel(?string $language): string
-    {
-        if ($language === null) {
-            return 'Code';
-        }
-
-        $labels = [
-            'php' => 'PHP',
-            'blade' => 'Blade',
-            'html' => 'HTML',
-            'css' => 'CSS',
-            'javascript' => 'JavaScript',
-            'js' => 'JavaScript',
-            'json' => 'JSON',
-            'bash' => 'Terminal',
-            'shell' => 'Terminal',
-            'sh' => 'Terminal',
-            'sql' => 'SQL',
-            'yaml' => 'YAML',
-            'yml' => 'YAML',
-            'xml' => 'XML',
-            'typescript' => 'TypeScript',
-            'ts' => 'TypeScript',
-        ];
-
-        return $labels[strtolower($language)] ?? strtoupper($language);
     }
 
     /**

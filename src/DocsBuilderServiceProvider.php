@@ -2,6 +2,7 @@
 
 namespace LynkByte\DocsBuilder;
 
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\ServiceProvider;
 use LynkByte\DocsBuilder\Commands\AiDocsCommand;
 use LynkByte\DocsBuilder\Commands\BuildDocsCommand;

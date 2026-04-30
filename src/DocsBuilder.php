@@ -3,14 +3,30 @@
 namespace LynkByte\DocsBuilder;
 
 use Illuminate\Support\Facades\File;
+use LynkByte\DocsBuilder\Contracts\MarkdownParserInterface;
+use LynkByte\DocsBuilder\Contracts\OpenApiParserInterface;
+use LynkByte\DocsBuilder\Data\Endpoint;
+use LynkByte\DocsBuilder\Data\Page;
 
+/**
+ * @phpstan-type NavigationSection array{title: string, pages: array<int, Page>}
+ * @phpstan-type ParsedMarkdown array{html: string, description: string, plainText: string, headings: array<int, array{text: string, level: int, id: string}>}
+ * @phpstan-type BreadcrumbItem array{title: string, url: string}
+ * @phpstan-type PrevNextPage array{title: string, url: string}
+ */
 class DocsBuilder
 {
-    private MarkdownParser $markdownParser;
+    public const LAYOUT_DOCUMENTATION = 'documentation';
 
-    private OpenApiParser $openApiParser;
+    public const LAYOUT_API_REFERENCE = 'api-reference';
+
+    private MarkdownParserInterface $markdownParser;
+
+    private OpenApiParserInterface $openApiParser;
 
     private SearchIndexBuilder $searchIndex;
+
+    private NavigationBuilder $navigationBuilder;
 
     private string $sourceDir;
 
@@ -21,26 +37,42 @@ class DocsBuilder
     /** @var array<string, mixed> */
     private array $config;
 
-    /** @var array<int, array<string, mixed>> */
-    private array $flatPages = [];
-
     private int $pagesBuilt = 0;
 
     /** @var array<string, mixed>|null */
     private ?array $apiDataCache = null;
 
-    /** @var array<string, array<int, array<string, mixed>>>|null */
+    /** @var array<string, array<int, Endpoint>>|null */
     private ?array $apiEndpointsCache = null;
 
-    public function __construct(?OpenApiParser $parser = null)
+    /**
+     * @param  OpenApiParserInterface|null  $parser  Custom OpenAPI parser instance.
+     * @param  array<string, mixed>|null  $config  Configuration array; falls back to config('docs-builder').
+     * @param  MarkdownParserInterface|null  $markdownParser  Custom Markdown parser instance.
+     * @param  SearchIndexBuilder|null  $searchIndex  Custom search index builder instance.
+     *
+     * @throws \InvalidArgumentException If source_dir or output_dir is missing from config.
+     */
+    public function __construct(?OpenApiParserInterface $parser = null, ?array $config = null, ?MarkdownParserInterface $markdownParser = null, ?SearchIndexBuilder $searchIndex = null)
     {
-        $this->markdownParser = new MarkdownParser;
-        $this->openApiParser = $parser ?? new OpenApiParser;
-        $this->searchIndex = new SearchIndexBuilder;
-        $this->config = config('docs-builder');
+        $this->config = $config ?? config('docs-builder') ?? [];
+        $this->markdownParser = $markdownParser ?? new MarkdownParser;
+        $this->openApiParser = $parser ?? new OpenApiParser($this->config['api_tag_icons'] ?? []);
+        $this->searchIndex = $searchIndex ?? new SearchIndexBuilder;
+
+        if (empty($this->config['source_dir'])) {
+            throw new \InvalidArgumentException('The docs-builder "source_dir" configuration value is required.');
+        }
+
+        if (empty($this->config['output_dir'])) {
+            throw new \InvalidArgumentException('The docs-builder "output_dir" configuration value is required.');
+        }
+
         $this->sourceDir = $this->config['source_dir'];
         $this->outputDir = $this->config['output_dir'];
-        $this->baseUrl = rtrim($this->config['base_url'], '/');
+        $this->baseUrl = rtrim($this->config['base_url'] ?? '/docs', '/');
+
+        $this->navigationBuilder = new NavigationBuilder($this->config, $this->baseUrl);
     }
 
     /**
@@ -53,11 +85,8 @@ class DocsBuilder
         // Clean output directory
         $this->cleanOutput();
 
-        // Build navigation with slugs and URLs
-        $navigation = $this->buildNavigation();
-
-        // Build flat page list for prev/next navigation
-        $this->flatPages = $this->buildFlatPageList($navigation);
+        // Build navigation with slugs and URLs (also populates flat page list for prev/next)
+        $navigation = $this->navigationBuilder->build();
 
         // Build documentation pages
         foreach ($navigation as $section) {
@@ -102,60 +131,6 @@ class DocsBuilder
     }
 
     /**
-     * Build the navigation structure with slugs and URLs.
-     *
-     * @return array<int, array<string, mixed>>
-     */
-    private function buildNavigation(): array
-    {
-        $navigation = [];
-
-        foreach ($this->config['navigation'] as $section) {
-            $builtSection = [
-                'title' => $section['title'],
-                'pages' => [],
-            ];
-
-            foreach ($section['pages'] as $page) {
-                $slug = $this->fileToSlug($page['file']);
-                $url = $this->slugToUrl($slug);
-                $layout = $page['layout'] ?? 'documentation';
-
-                $builtSection['pages'][] = [
-                    'title' => $page['title'],
-                    'file' => $page['file'],
-                    'slug' => $slug,
-                    'url' => $url,
-                    'icon' => $page['icon'] ?? null,
-                    'layout' => $layout,
-                ];
-            }
-
-            $navigation[] = $builtSection;
-        }
-
-        return $navigation;
-    }
-
-    /**
-     * Build a flat list of pages for prev/next navigation.
-     *
-     * @param  array<int, array<string, mixed>>  $navigation
-     * @return array<int, array<string, mixed>>
-     */
-    private function buildFlatPageList(array $navigation): array
-    {
-        $pages = [];
-        foreach ($navigation as $section) {
-            foreach ($section['pages'] as $page) {
-                $pages[] = $page;
-            }
-        }
-
-        return $pages;
-    }
-
-    /**
      * Resolve shared view data common to all page types.
      *
      * @return array<string, mixed>
@@ -176,6 +151,32 @@ class DocsBuilder
     }
 
     /**
+     * Build the base view data array common to all page types.
+     *
+     * @param  Page  $page  The page being rendered.
+     * @param  string  $pageDescription  Description text for the page.
+     * @param  string  $content  Rendered HTML content.
+     * @param  array<int, NavigationSection>  $navigation  Full navigation structure.
+     * @param  array<int, BreadcrumbItem>  $breadcrumbs  Breadcrumb trail.
+     * @return array<string, mixed>
+     */
+    private function buildBaseViewData(Page $page, string $pageDescription, string $content, array $navigation, array $breadcrumbs): array
+    {
+        return array_merge($this->resolveSharedViewData(), [
+            'baseUrl' => $this->baseUrl,
+            'siteName' => $this->config['site_name'] ?? '',
+            'siteDescription' => $this->config['site_description'] ?? '',
+            'pageTitle' => $page['title'],
+            'pageDescription' => $pageDescription,
+            'content' => $content,
+            'navigation' => $navigation,
+            'currentPage' => $page['slug'],
+            'breadcrumbs' => $breadcrumbs,
+            'footer' => $this->config['footer'] ?? null,
+        ]);
+    }
+
+    /**
      * Get parsed OpenAPI data, caching the result for reuse.
      *
      * @return array<string, mixed>|null
@@ -186,8 +187,8 @@ class DocsBuilder
             return $this->apiDataCache;
         }
 
-        $openApiFile = $this->config['openapi_file'];
-        if (! file_exists($openApiFile)) {
+        $openApiFile = $this->config['openapi_file'] ?? null;
+        if ($openApiFile === null || ! file_exists($openApiFile)) {
             return null;
         }
 
@@ -199,7 +200,7 @@ class DocsBuilder
     /**
      * Get API endpoints with URLs, caching the result for reuse.
      *
-     * @return array<string, array<int, array<string, mixed>>>
+     * @return array<string, array<int, Endpoint>>
      */
     private function getApiEndpoints(): array
     {
@@ -215,9 +216,9 @@ class DocsBuilder
                 $this->apiEndpointsCache[$tag] = [];
                 foreach ($endpoints as $endpoint) {
                     $endpointSlug = 'api-reference/'.$endpoint['operationId'];
-                    $this->apiEndpointsCache[$tag][] = array_merge($endpoint, [
-                        'url' => $this->baseUrl.'/'.$endpointSlug.'/index.html',
-                    ]);
+                    $this->apiEndpointsCache[$tag][] = $endpoint->withUrl(
+                        $this->baseUrl.'/'.$endpointSlug.'/index.html'
+                    );
                 }
             }
         }
@@ -228,10 +229,9 @@ class DocsBuilder
     /**
      * Build a single documentation page.
      *
-     * @param  array<string, mixed>  $page
-     * @param  array<int, array<string, mixed>>  $navigation
+     * @param  array<int, NavigationSection>  $navigation
      */
-    private function buildPage(array $page, string $sectionTitle, array $navigation): void
+    private function buildPage(Page $page, string $sectionTitle, array $navigation): void
     {
         $filePath = $this->sourceDir.'/'.$page['file'];
 
@@ -243,15 +243,15 @@ class DocsBuilder
         $parsed = $this->markdownParser->parse($filePath);
 
         // Replace {SiteName} placeholder with configured site name
-        $parsed['html'] = str_replace('{SiteName}', $this->config['site_name'], $parsed['html']);
-        $parsed['description'] = str_replace('{SiteName}', $this->config['site_name'], $parsed['description']);
-        $parsed['plainText'] = str_replace('{SiteName}', $this->config['site_name'], $parsed['plainText']);
+        $parsed['html'] = str_replace('{SiteName}', $this->config['site_name'] ?? '', $parsed['html']);
+        $parsed['description'] = str_replace('{SiteName}', $this->config['site_name'] ?? '', $parsed['description']);
+        $parsed['plainText'] = str_replace('{SiteName}', $this->config['site_name'] ?? '', $parsed['plainText']);
 
         // Rewrite inter-document .md links to proper web URLs
         $parsed['html'] = $this->postProcessLinks($parsed['html']);
 
         // Determine prev/next pages
-        [$prevPage, $nextPage] = $this->getPrevNextPages($page['slug']);
+        [$prevPage, $nextPage] = $this->navigationBuilder->getPrevNextPages($page['slug']);
 
         // Build breadcrumbs
         $breadcrumbs = [
@@ -261,31 +261,24 @@ class DocsBuilder
         ];
 
         // Determine which layout to use
-        $layout = $page['layout'] ?? 'documentation';
+        $layout = $page['layout'] ?? self::LAYOUT_DOCUMENTATION;
 
-        if ($layout === 'api-reference') {
+        if ($layout === self::LAYOUT_API_REFERENCE) {
             // For the API reference markdown page, use api-reference layout
             // but without endpoint-specific data (it's the overview page)
             $this->buildApiReferencePage($page, $parsed, $navigation, $breadcrumbs);
         } else {
             // Standard documentation page
-            $viewData = array_merge($this->resolveSharedViewData(), [
-                'baseUrl' => $this->baseUrl,
-                'siteName' => $this->config['site_name'],
-                'siteDescription' => $this->config['site_description'],
-                'pageTitle' => $page['title'],
-                'pageDescription' => $parsed['description'],
-                'content' => $parsed['html'],
-                'navigation' => $navigation,
-                'currentPage' => $page['slug'],
-                'tableOfContents' => $parsed['headings'],
-                'breadcrumbs' => $breadcrumbs,
-                'prevPage' => $prevPage,
-                'nextPage' => $nextPage,
-                'footer' => $this->config['footer'],
-            ]);
+            $viewData = array_merge(
+                $this->buildBaseViewData($page, $parsed['description'], $parsed['html'], $navigation, $breadcrumbs),
+                [
+                    'tableOfContents' => $parsed['headings'],
+                    'prevPage' => $prevPage,
+                    'nextPage' => $nextPage,
+                ]
+            );
 
-            $html = view('docs-builder::docs.layouts.documentation', $viewData)->render();
+            $html = view('docs-builder::docs.layouts.'.self::LAYOUT_DOCUMENTATION, $viewData)->render();
             $this->writePage($page['slug'], $html);
         }
 
@@ -306,51 +299,30 @@ class DocsBuilder
     /**
      * Build the API reference overview page (from the markdown file) using the api-reference layout.
      *
-     * @param  array<string, mixed>  $page
-     * @param  array<string, mixed>  $parsed
-     * @param  array<int, array<string, mixed>>  $navigation
-     * @param  array<int, array<string, string>>  $breadcrumbs
+     * @param  ParsedMarkdown  $parsed
+     * @param  array<int, NavigationSection>  $navigation
+     * @param  array<int, BreadcrumbItem>  $breadcrumbs
      */
-    private function buildApiReferencePage(array $page, array $parsed, array $navigation, array $breadcrumbs): void
+    private function buildApiReferencePage(Page $page, array $parsed, array $navigation, array $breadcrumbs): void
     {
         $apiData = $this->getApiData();
         $apiEndpoints = $this->getApiEndpoints();
 
-        $viewData = array_merge($this->resolveSharedViewData(), [
-            'baseUrl' => $this->baseUrl,
-            'siteName' => $this->config['site_name'],
-            'siteDescription' => $this->config['site_description'],
-            'pageTitle' => $page['title'],
-            'pageDescription' => $parsed['description'],
-            'content' => $parsed['html'],
-            'navigation' => $navigation,
-            'currentPage' => $page['slug'],
-            'breadcrumbs' => $breadcrumbs,
-            'footer' => $this->config['footer'],
-            // API-specific data
-            'apiEndpoints' => $apiEndpoints,
-            'tagIcons' => $apiData['tagIcons'] ?? [],
-            'apiVersion' => $apiData['info']['version'] ?? 'v1',
-            'apiServerUrl' => $apiData['serverUrl'] ?? '',
-            // No endpoint-specific data (this is the overview)
-            'endpointMethod' => null,
-            'endpointPath' => null,
-            'parameters' => [],
-            'pathParameters' => [],
-            'queryParameters' => [],
-            'bodyParameters' => [],
-            'responses' => [],
-            'currentEndpoint' => null,
-        ]);
+        $viewData = $this->buildApiReferenceViewData(
+            $page, $parsed['description'], $navigation, $breadcrumbs, $apiEndpoints, $apiData ?? []
+        );
 
-        $html = view('docs-builder::docs.layouts.api-reference', $viewData)->render();
+        // Override content with the parsed markdown HTML for the overview page
+        $viewData['content'] = $parsed['html'];
+
+        $html = view('docs-builder::docs.layouts.'.self::LAYOUT_API_REFERENCE, $viewData)->render();
         $this->writePage($page['slug'], $html);
     }
 
     /**
      * Build individual API endpoint pages from the OpenAPI spec.
      *
-     * @param  array<int, array<string, mixed>>  $navigation
+     * @param  array<int, NavigationSection>  $navigation
      */
     private function buildApiReference(array $navigation): void
     {
@@ -372,33 +344,18 @@ class DocsBuilder
                     ['title' => $endpoint['summary'], 'url' => ''],
                 ];
 
-                $viewData = array_merge($this->resolveSharedViewData(), [
-                    'baseUrl' => $this->baseUrl,
-                    'siteName' => $this->config['site_name'],
-                    'siteDescription' => $this->config['site_description'],
-                    'pageTitle' => $endpoint['summary'],
-                    'pageDescription' => $endpoint['description'],
-                    'content' => '',
-                    'navigation' => $navigation,
-                    'currentPage' => 'api-reference',
-                    'breadcrumbs' => $breadcrumbs,
-                    'footer' => $this->config['footer'],
-                    // API-specific data
-                    'apiEndpoints' => $apiEndpoints,
-                    'tagIcons' => $apiData['tagIcons'],
-                    'apiVersion' => $apiData['info']['version'] ?? 'v1',
-                    'apiServerUrl' => $apiData['serverUrl'] ?? '',
-                    'endpointMethod' => $endpoint['method'],
-                    'endpointPath' => $endpoint['path'],
-                    'parameters' => $endpoint['parameters'],
-                    'pathParameters' => $endpoint['pathParameters'],
-                    'queryParameters' => $endpoint['queryParameters'],
-                    'bodyParameters' => $endpoint['bodyParameters'],
-                    'responses' => $endpoint['responses'],
-                    'currentEndpoint' => $endpoint['operationId'],
-                ]);
+                $endpointPage = new Page(
+                    title: $endpoint['summary'],
+                    file: '',
+                    slug: 'api-reference',
+                    url: $this->baseUrl.'/'.$endpointSlug.'/index.html',
+                );
 
-                $html = view('docs-builder::docs.layouts.api-reference', $viewData)->render();
+                $viewData = $this->buildApiReferenceViewData(
+                    $endpointPage, $endpoint['description'], $navigation, $breadcrumbs, $apiEndpoints, $apiData, $endpoint
+                );
+
+                $html = view('docs-builder::docs.layouts.'.self::LAYOUT_API_REFERENCE, $viewData)->render();
                 $this->writePage($endpointSlug, $html);
 
                 // Add to search index
@@ -417,35 +374,43 @@ class DocsBuilder
     }
 
     /**
-     * Get previous and next pages for navigation.
+     * Assemble the view data array for an API reference page.
      *
-     * @return array{0: array<string, string>|null, 1: array<string, string>|null}
+     * @param  Page  $page  The page being rendered.
+     * @param  string  $description  Page description text.
+     * @param  array<int, NavigationSection>  $navigation  Full navigation structure.
+     * @param  array<int, BreadcrumbItem>  $breadcrumbs  Breadcrumb trail.
+     * @param  array<string, array<int, Endpoint>>  $apiEndpoints  All endpoints grouped by tag.
+     * @param  array<string, mixed>  $apiData  Parsed OpenAPI data.
+     * @param  Endpoint|null  $endpoint  The specific endpoint being rendered, or null for the overview page.
+     * @return array<string, mixed>
      */
-    private function getPrevNextPages(string $currentSlug): array
-    {
-        $currentIndex = null;
-        foreach ($this->flatPages as $i => $page) {
-            if ($page['slug'] === $currentSlug) {
-                $currentIndex = $i;
-                break;
-            }
-        }
-
-        if ($currentIndex === null) {
-            return [null, null];
-        }
-
-        $prev = $currentIndex > 0 ? [
-            'title' => $this->flatPages[$currentIndex - 1]['title'],
-            'url' => $this->flatPages[$currentIndex - 1]['url'],
-        ] : null;
-
-        $next = $currentIndex < count($this->flatPages) - 1 ? [
-            'title' => $this->flatPages[$currentIndex + 1]['title'],
-            'url' => $this->flatPages[$currentIndex + 1]['url'],
-        ] : null;
-
-        return [$prev, $next];
+    private function buildApiReferenceViewData(
+        Page $page,
+        string $description,
+        array $navigation,
+        array $breadcrumbs,
+        array $apiEndpoints,
+        array $apiData,
+        ?Endpoint $endpoint = null,
+    ): array {
+        return array_merge(
+            $this->buildBaseViewData($page, $description, '', $navigation, $breadcrumbs),
+            [
+                'apiEndpoints' => $apiEndpoints,
+                'tagIcons' => $apiData['tagIcons'] ?? [],
+                'apiVersion' => $apiData['info']['version'] ?? 'v1',
+                'apiServerUrl' => $apiData['serverUrl'] ?? '',
+                'endpointMethod' => $endpoint?->method,
+                'endpointPath' => $endpoint?->path,
+                'parameters' => $endpoint?->parameters ?? [],
+                'pathParameters' => $endpoint?->pathParameters ?? [],
+                'queryParameters' => $endpoint?->queryParameters ?? [],
+                'bodyParameters' => $endpoint?->bodyParameters ?? [],
+                'responses' => $endpoint?->responses ?? [],
+                'currentEndpoint' => $endpoint?->operationId,
+            ]
+        );
     }
 
     /**
@@ -468,34 +433,6 @@ class DocsBuilder
     }
 
     /**
-     * Convert a filename to a URL slug.
-     */
-    private function fileToSlug(string $file): string
-    {
-        // Remove .md extension
-        $slug = preg_replace('/\.md$/i', '', $file);
-
-        // README becomes index
-        if ($slug === 'README') {
-            return 'index';
-        }
-
-        return $slug;
-    }
-
-    /**
-     * Convert a slug to a full URL.
-     */
-    private function slugToUrl(string $slug): string
-    {
-        if ($slug === 'index') {
-            return $this->baseUrl.'/index.html';
-        }
-
-        return $this->baseUrl.'/'.$slug.'/index.html';
-    }
-
-    /**
      * Rewrite inter-document .md links in rendered HTML to proper web URLs.
      *
      * Converts relative hrefs like "installation.md" or "README.md#section"
@@ -512,13 +449,13 @@ class DocsBuilder
                 $fragment = $matches[3] ?? '';
 
                 // Skip external / absolute URLs
-                if (preg_match('#^(https?://|//|mailto:|tel:)#i', $href)) {
+                if (preg_match('#^(https?://|//|/|mailto:|tel:)#i', $href)) {
                     return $matches[0];
                 }
 
                 // Convert the .md filename to a slug, then to a full URL
-                $slug = $this->fileToSlug($href);
-                $url = $this->slugToUrl($slug);
+                $slug = $this->navigationBuilder->fileToSlug($href);
+                $url = $this->navigationBuilder->slugToUrl($slug);
 
                 return '<a '.$before.'href="'.$url.$fragment.'"';
             },

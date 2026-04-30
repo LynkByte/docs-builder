@@ -185,3 +185,94 @@ it('does not add extra separator when existing content already ends with separat
     // Should not have double ---
     expect($content)->not->toContain("---\n\n---");
 });
+
+// ── Marker edge cases ────────────────────────────────────────────────
+
+it('handles file with only start marker and no end marker gracefully', function () {
+    $content = "# My Project\n\n<!-- docs-builder:start -->\nOrphan start marker\n";
+    file_put_contents(base_path('CLAUDE.md'), $content);
+
+    $this->artisan('docs:ai')
+        ->assertSuccessful();
+
+    // The file has a start marker so it's treated as "has markers" — should be skipped
+    $updated = file_get_contents(base_path('CLAUDE.md'));
+    expect($updated)->toBe($content);
+});
+
+it('preserves content before and after markers when force-replacing with surrounding whitespace', function () {
+    $content = "# Title\n\n<!-- docs-builder:start -->\nOld\n<!-- docs-builder:end -->\nTail content\n";
+    file_put_contents(base_path('CLAUDE.md'), $content);
+
+    $this->artisan('docs:ai', ['--force' => true])
+        ->assertSuccessful();
+
+    $updated = file_get_contents(base_path('CLAUDE.md'));
+
+    expect($updated)->toStartWith('# Title')
+        ->and($updated)->toContain('<!-- docs-builder:start -->')
+        ->and($updated)->toContain('<!-- docs-builder:end -->')
+        ->and($updated)->not->toContain('Old')
+        ->and($updated)->toContain('Tail content');
+});
+
+it('appends to empty file without errors', function () {
+    file_put_contents(base_path('CLAUDE.md'), '');
+
+    $this->artisan('docs:ai')
+        ->assertSuccessful();
+
+    $content = file_get_contents(base_path('CLAUDE.md'));
+
+    expect($content)->toContain('<!-- docs-builder:start -->')
+        ->and($content)->toContain('<!-- docs-builder:end -->');
+});
+
+it('uses published stubs when available', function () {
+    $stubDir = base_path('stubs/docs-builder/ai');
+    if (! is_dir($stubDir)) {
+        File::makeDirectory($stubDir, 0755, true);
+    }
+
+    file_put_contents($stubDir.'/CLAUDE.md', "Custom stub content\n");
+
+    try {
+        $this->artisan('docs:ai')
+            ->assertSuccessful();
+
+        $content = file_get_contents(base_path('CLAUDE.md'));
+        expect($content)->toContain('Custom stub content');
+    } finally {
+        File::deleteDirectory(base_path('stubs/docs-builder'));
+    }
+});
+
+// ── replaceMarkedSection edge cases ──────────────────────────────────
+
+it('replaces marked section at the very start of a file', function () {
+    $content = "<!-- docs-builder:start -->\nOld content\n<!-- docs-builder:end -->\n\nUser content after.\n";
+    file_put_contents(base_path('CLAUDE.md'), $content);
+
+    $this->artisan('docs:ai', ['--force' => true])
+        ->assertSuccessful();
+
+    $updated = file_get_contents(base_path('CLAUDE.md'));
+
+    expect($updated)->not->toContain('Old content')
+        ->and($updated)->toContain('<!-- docs-builder:start -->')
+        ->and($updated)->toContain('User content after.');
+});
+
+it('replaces marked section at the very end of a file', function () {
+    $content = "User content before.\n\n<!-- docs-builder:start -->\nOld content\n<!-- docs-builder:end -->\n";
+    file_put_contents(base_path('CLAUDE.md'), $content);
+
+    $this->artisan('docs:ai', ['--force' => true])
+        ->assertSuccessful();
+
+    $updated = file_get_contents(base_path('CLAUDE.md'));
+
+    expect($updated)->toContain('User content before.')
+        ->and($updated)->not->toContain('Old content')
+        ->and($updated)->toContain('<!-- docs-builder:start -->');
+});
