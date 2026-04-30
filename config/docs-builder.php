@@ -89,6 +89,7 @@ return [
     |
     | 'default' - The original DevDocs theme (blue, cool tones)
     | 'modern'  - A warm, polished theme inspired by Mintlify/Laravel docs
+    | 'aurora'  - A dark-first theme with electric violet, oklch colors, Geist fonts
     |
     | Custom themes can be added by creating view and CSS/JS files under
     | resources/views/themes/{name}/ and resources/css/themes/{name}.css
