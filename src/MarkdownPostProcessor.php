@@ -2,6 +2,9 @@
 
 namespace LynkByte\DocsBuilder;
 
+use Tempest\Highlight\Highlighter;
+use Throwable;
+
 class MarkdownPostProcessor
 {
     /**
@@ -9,7 +12,7 @@ class MarkdownPostProcessor
      *
      * @param  array<string, array{highlight: string, label: string}>  $languageMap
      */
-    public function processCodeBlocks(string $html, \Tempest\Highlight\Highlighter $highlighter, array $languageMap): string
+    public function processCodeBlocks(string $html, Highlighter $highlighter, array $languageMap): string
     {
         // Convert mermaid code blocks into client-side rendered diagrams
         $html = preg_replace_callback(
@@ -190,7 +193,7 @@ class MarkdownPostProcessor
      *
      * @param  array<string, array{highlight: string, label: string}>  $languageMap
      */
-    private function buildStyledCodeBlock(string $code, \Tempest\Highlight\Highlighter $highlighter, array $languageMap, ?string $language = null): string
+    private function buildStyledCodeBlock(string $code, Highlighter $highlighter, array $languageMap, ?string $language = null): string
     {
         // Decode HTML entities back to raw code for the highlighter
         $rawCode = html_entity_decode($code, ENT_QUOTES | ENT_HTML5, 'UTF-8');
@@ -202,7 +205,7 @@ class MarkdownPostProcessor
 
             try {
                 $highlighted = $highlighter->parse($rawCode, $highlightLang);
-            } catch (\Throwable) {
+            } catch (Throwable) {
                 // Fallback: re-encode and use plain text
                 $highlighted = htmlspecialchars($rawCode, ENT_QUOTES | ENT_HTML5, 'UTF-8');
             }

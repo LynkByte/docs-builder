@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Support\Facades\File;
 use LynkByte\DocsBuilder\DocsBuilder;
 
 beforeEach(function () {
@@ -8,7 +9,7 @@ beforeEach(function () {
 
 afterEach(function () {
     if (is_dir($this->outputDir)) {
-        \Illuminate\Support\Facades\File::deleteDirectory($this->outputDir);
+        File::deleteDirectory($this->outputDir);
     }
 });
 

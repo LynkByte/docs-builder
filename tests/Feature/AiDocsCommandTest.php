@@ -231,7 +231,7 @@ it('appends to empty file without errors', function () {
 it('uses published stubs when available', function () {
     $stubDir = base_path('stubs/docs-builder/ai');
     if (! is_dir($stubDir)) {
-        \Illuminate\Support\Facades\File::makeDirectory($stubDir, 0755, true);
+        File::makeDirectory($stubDir, 0755, true);
     }
 
     file_put_contents($stubDir.'/CLAUDE.md', "Custom stub content\n");
@@ -243,7 +243,7 @@ it('uses published stubs when available', function () {
         $content = file_get_contents(base_path('CLAUDE.md'));
         expect($content)->toContain('Custom stub content');
     } finally {
-        \Illuminate\Support\Facades\File::deleteDirectory(base_path('stubs/docs-builder'));
+        File::deleteDirectory(base_path('stubs/docs-builder'));
     }
 });
 
