@@ -259,3 +259,48 @@ it('does not convert non-video urls to embeds', function () {
     expect($result['html'])->not->toContain('docs-video-wrapper')
         ->and($result['html'])->toContain('<a href=');
 });
+
+// =========================================================================
+// PLAIN TEXT (htmlToPlainText)
+// =========================================================================
+
+it('returns string and not null from plain text conversion', function () {
+    $file = $this->tempDir.'/test.md';
+    file_put_contents($file, "# Title\n\n```php\necho 'hello';\n```\n\nSome text.");
+
+    $result = $this->parser->parse($file);
+
+    expect($result['plainText'])->toBeString()
+        ->and($result['plainText'])->not->toBeNull()
+        ->and($result['plainText'])->toContain('Some text');
+});
+
+it('excludes code block content from plain text', function () {
+    $file = $this->tempDir.'/test.md';
+    file_put_contents($file, "# Title\n\nVisible text.\n\n```php\n\$secret = 'should not appear';\n```");
+
+    $result = $this->parser->parse($file);
+
+    expect($result['plainText'])->toContain('Visible text')
+        ->and($result['plainText'])->not->toContain('should not appear');
+});
+
+it('normalizes whitespace in plain text', function () {
+    $file = $this->tempDir.'/test.md';
+    file_put_contents($file, "# Title\n\nFirst paragraph.\n\nSecond paragraph.");
+
+    $result = $this->parser->parse($file);
+
+    expect($result['plainText'])->not->toContain("\n")
+        ->and($result['plainText'])->not->toMatch('/\s{2,}/');
+});
+
+it('truncates plain text to 1000 characters', function () {
+    $file = $this->tempDir.'/test.md';
+    $longText = str_repeat('This is a very long text. ', 50);
+    file_put_contents($file, "# Title\n\n$longText");
+
+    $result = $this->parser->parse($file);
+
+    expect(mb_strlen($result['plainText']))->toBeLessThanOrEqual(1000);
+});
