@@ -333,7 +333,7 @@ import Fuse from 'fuse.js';
     async function loadSearchIndex() {
         if (searchIndex) return;
         try {
-            const baseUrl = document.querySelector('meta[name="docs-base-url"]')?.content || '/docs';
+            const baseUrl = document.querySelector('meta[name="docs-base-url"]')?.content ?? '';
             const response = await fetch(`${baseUrl}/search-index.json`);
             searchIndex = await response.json();
             fuse = new Fuse(searchIndex, {
@@ -505,6 +505,14 @@ import Fuse from 'fuse.js';
             modal.addEventListener('click', (e) => {
                 if (e.target === modal) closeSearchModal();
             });
+
+            // Prevent clicks inside the search panel from closing the modal
+            const searchPanel = modal.querySelector('[data-search-panel]');
+            if (searchPanel) {
+                searchPanel.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                });
+            }
 
             // Also close when clicking the overlay div
             const overlay = modal.querySelector('.docs-search-overlay');

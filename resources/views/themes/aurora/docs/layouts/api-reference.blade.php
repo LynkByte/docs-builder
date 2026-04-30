@@ -195,26 +195,20 @@
                         <button class="px-2.5 py-1 hover:bg-[var(--color-code-header)] rounded text-[10px] font-bold text-[var(--docs-text-muted)] uppercase tracking-wider transition-colors">Python</button>
                     </div>
                 </div>
-                <div class="relative bg-[var(--color-code-bg)] rounded-lg p-4 font-mono text-xs group border border-[var(--color-code-border)]">
+                <div class="docs-code-block relative bg-[var(--color-code-bg)] rounded-lg p-4 font-mono text-xs group border border-[var(--color-code-border)]" style="border: none; margin: 0; box-shadow: none;">
                     <button class="absolute top-3 right-3 p-1.5 bg-[var(--color-code-header)] rounded opacity-0 group-hover:opacity-100 transition-opacity" data-copy-code>
                         {{-- copy icon --}}
                         <svg class="w-3.5 h-3.5 text-[var(--docs-text-muted)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
                     </button>
-                    <div class="docs-code-block space-y-1" style="border: none; margin: 0; box-shadow: none; background: transparent;">
-                        <code class="text-[var(--color-code-text)]">
-                            <div><span class="text-[var(--color-primary-light)]">curl</span> --request {{ strtoupper($endpointMethod) }} \</div>
-                            <div class="pl-4">--url {{ rtrim($apiServerUrl ?? 'http://localhost:8000/api/v1', '/') }}{{ $endpointPath }} \</div>
-                            <div class="pl-4">--header <span class="text-green-400">'Authorization: Bearer &lt;TOKEN&gt;'</span> \</div>
-                            <div class="pl-4">--header <span class="text-green-400">'Content-Type: application/json'</span>@if(!empty($bodyParameters)) \@endif</div>
-                            @if(!empty($bodyParameters))
-                            <div class="pl-4">--data <span class="text-[var(--color-primary-light)]">'{</span></div>
-                            @foreach($bodyParameters as $param)
-                            <div class="pl-8 text-[var(--color-primary-light)]">"{{ $param['name'] }}": "{{ $param['example'] ?? '' }}"{{ !$loop->last ? ',' : '' }}</div>
-                            @endforeach
-                            <div class="pl-4 text-[var(--color-primary-light)]">}'</div>
-                            @endif
-                        </code>
-                    </div>
+                    <pre class="whitespace-pre-wrap"><code class="text-[var(--color-code-text)]"><span class="text-[var(--color-primary)]">curl</span> --request {{ strtoupper($endpointMethod) }} \
+    --url {{ rtrim($apiServerUrl ?? 'http://localhost:8000/api/v1', '/') }}{{ $endpointPath }} \
+    --header <span class="text-green-400">'Authorization: Bearer &lt;TOKEN&gt;'</span> \
+    --header <span class="text-green-400">'Content-Type: application/json'</span>@if(!empty($bodyParameters)) \
+    --data <span class="text-[var(--color-primary)]">'{</span>
+@foreach($bodyParameters as $param)
+        <span class="text-[var(--color-primary)]">"{{ $param['name'] }}": "{{ $param['example'] ?? '' }}"{{ !$loop->last ? ',' : '' }}</span>
+@endforeach
+    <span class="text-[var(--color-primary)]">}'</span>@endif</code></pre>
                 </div>
             </div>
 

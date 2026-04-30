@@ -18,7 +18,7 @@
             @endif
             @if(!empty($socialLinks))
                 @foreach($socialLinks as $social)
-                <a class="hover:text-[var(--color-primary)] transition-colors" href="{{ $social['url'] }}" target="_blank" rel="noopener">{{ $social['label'] ?? $social['platform'] ?? '' }}</a>
+                <a class="hover:text-[var(--color-primary)] transition-colors" href="{{ $social['url'] }}" target="_blank" rel="noopener noreferrer">{{ $social['label'] ?? $social['platform'] ?? '' }}</a>
                 @endforeach
             @endif
         </div>

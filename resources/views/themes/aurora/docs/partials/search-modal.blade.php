@@ -5,7 +5,7 @@
 
     {{-- Modal --}}
     <div class="relative flex items-start justify-center pt-[12vh] px-4">
-        <div class="w-full max-w-[600px] bg-[var(--docs-search-bg)] rounded-xl shadow-2xl border border-[var(--docs-border)] overflow-hidden flex flex-col docs-animate-fade-in" onclick="event.stopPropagation()">
+        <div class="w-full max-w-[600px] bg-[var(--docs-search-bg)] rounded-xl shadow-2xl border border-[var(--docs-border)] overflow-hidden flex flex-col docs-animate-fade-in" data-search-panel>
             {{-- Search Input --}}
             <div class="p-4">
                 <div class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-[var(--docs-search-input-bg)] docs-search-input-highlight">
