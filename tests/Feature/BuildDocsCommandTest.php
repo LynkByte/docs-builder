@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\File;
+use LynkByte\DocsBuilder\Data\Endpoint;
 use LynkByte\DocsBuilder\DocsBuilder;
 use LynkByte\DocsBuilder\OpenApiParser;
 
@@ -65,18 +66,13 @@ it('parses the OpenAPI spec only once during build', function () {
             'tagIcons' => ['Users' => 'people'],
             'endpoints' => [
                 'Users' => [
-                    [
-                        'operationId' => 'list-users',
-                        'summary' => 'List Users',
-                        'description' => 'Get all users',
-                        'method' => 'GET',
-                        'path' => '/users',
-                        'parameters' => [],
-                        'pathParameters' => [],
-                        'queryParameters' => [],
-                        'bodyParameters' => [],
-                        'responses' => [],
-                    ],
+                    new Endpoint(
+                        path: '/users',
+                        method: 'GET',
+                        operationId: 'list-users',
+                        summary: 'List Users',
+                        description: 'Get all users',
+                    ),
                 ],
             ],
         ]);

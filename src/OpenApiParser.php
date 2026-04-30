@@ -2,17 +2,34 @@
 
 namespace LynkByte\DocsBuilder;
 
+use LynkByte\DocsBuilder\Data\Endpoint;
 use Symfony\Component\Yaml\Yaml;
 
-class OpenApiParser
+/**
+ * @phpstan-type ParameterData array{name: string, in: string, type: string, required: bool, description: string, example: string}
+ * @phpstan-type ResponseData array{description: string, example: ?string}
+ * @phpstan-type ApiData array{info: array<string, mixed>, endpoints: array<string, array<int, Endpoint>>, tagIcons: array<string, string>, serverUrl: string}
+ */
+class OpenApiParser implements Contracts\OpenApiParserInterface
 {
     /** @var array<string, mixed> */
     private array $spec = [];
 
+    /** @var array<string, string> */
+    private array $tagIconOverrides;
+
+    /**
+     * @param  array<string, string>  $tagIconOverrides  Custom tag-to-icon mappings that override defaults.
+     */
+    public function __construct(array $tagIconOverrides = [])
+    {
+        $this->tagIconOverrides = $tagIconOverrides;
+    }
+
     /**
      * Parse an OpenAPI YAML file and return structured endpoint data.
      *
-     * @return array{info: array<string, mixed>, endpoints: array<string, array<int, array<string, mixed>>>, tagIcons: array<string, string>, serverUrl: string}
+     * @return ApiData
      */
     public function parse(string $filePath): array
     {
@@ -64,7 +81,7 @@ class OpenApiParser
     /**
      * Extract all endpoints grouped by tag.
      *
-     * @return array<string, array<int, array<string, mixed>>>
+     * @return array<string, array<int, Endpoint>>
      */
     private function extractEndpoints(): array
     {
@@ -94,26 +111,24 @@ class OpenApiParser
      * Build a structured endpoint from an OpenAPI operation.
      *
      * @param  array<string, mixed>  $operation
-     * @return array<string, mixed>
      */
-    private function buildEndpoint(string $path, string $method, array $operation): array
+    private function buildEndpoint(string $path, string $method, array $operation): Endpoint
     {
         $allParameters = $this->extractParameters($operation);
 
-        return [
-            'path' => $path,
-            'method' => strtoupper($method),
-            'operationId' => $operation['operationId'] ?? $this->generateOperationId($path, $method),
-            'summary' => $operation['summary'] ?? '',
-            'description' => $operation['description'] ?? '',
-            'parameters' => $allParameters,
-            'pathParameters' => array_values(array_filter($allParameters, fn (array $p) => ($p['in'] ?? '') === 'path')),
-            'queryParameters' => array_values(array_filter($allParameters, fn (array $p) => ($p['in'] ?? '') === 'query')),
-            'bodyParameters' => array_values(array_filter($allParameters, fn (array $p) => ($p['in'] ?? '') === 'body')),
-            'responses' => $this->extractResponses($operation),
-            'security' => $this->extractSecurity($operation),
-            'url' => '', // Will be set by DocsBuilder
-        ];
+        return new Endpoint(
+            path: $path,
+            method: strtoupper($method),
+            operationId: $operation['operationId'] ?? $this->generateOperationId($path, $method),
+            summary: $operation['summary'] ?? '',
+            description: $operation['description'] ?? '',
+            parameters: $allParameters,
+            pathParameters: array_values(array_filter($allParameters, fn (array $p) => ($p['in'] ?? '') === 'path')),
+            queryParameters: array_values(array_filter($allParameters, fn (array $p) => ($p['in'] ?? '') === 'query')),
+            bodyParameters: array_values(array_filter($allParameters, fn (array $p) => ($p['in'] ?? '') === 'body')),
+            responses: $this->extractResponses($operation),
+            security: $this->extractSecurity($operation),
+        );
     }
 
     /**
@@ -131,7 +146,7 @@ class OpenApiParser
      * Extract request parameters (from both path params and request body).
      *
      * @param  array<string, mixed>  $operation
-     * @return array<int, array<string, mixed>>
+     * @return array<int, ParameterData>
      */
     private function extractParameters(array $operation): array
     {
@@ -182,7 +197,7 @@ class OpenApiParser
      * Extract response definitions.
      *
      * @param  array<string, mixed>  $operation
-     * @return array<string, array<string, mixed>>
+     * @return array<string, ResponseData>
      */
     private function extractResponses(array $operation): array
     {
@@ -242,25 +257,89 @@ class OpenApiParser
     /**
      * Resolve a $ref reference to the actual schema definition.
      *
+     * Follows nested `$ref` chains and recursively resolves references found
+     * within `properties`, `items`, `allOf`, `oneOf`, `anyOf`, and
+     * `additionalProperties`. A visited-set guard prevents infinite loops
+     * caused by circular references.
+     *
      * @param  array<string, mixed>  $schema
+     * @param  array<string, bool>  $visited  Tracks already-visited `$ref` paths to break circular chains.
      * @return array<string, mixed>
      */
-    private function resolveRef(array $schema): array
+    private function resolveRef(array $schema, array $visited = []): array
     {
-        if (! isset($schema['$ref'])) {
-            return $schema;
+        if (isset($schema['$ref'])) {
+            $ref = $schema['$ref'];
+
+            // Circular reference guard
+            if (isset($visited[$ref])) {
+                return [];
+            }
+
+            $visited[$ref] = true;
+
+            // Parse #/components/schemas/RegisterRequest format
+            $parts = explode('/', ltrim($ref, '#/'));
+
+            $resolved = $this->spec;
+            foreach ($parts as $part) {
+                $resolved = $resolved[$part] ?? [];
+            }
+
+            $schema = is_array($resolved) ? $resolved : [];
         }
 
-        $ref = $schema['$ref'];
-        // Parse #/components/schemas/RegisterRequest format
-        $parts = explode('/', ltrim($ref, '#/'));
+        return $this->resolveRefsRecursively($schema, $visited);
+    }
 
-        $resolved = $this->spec;
-        foreach ($parts as $part) {
-            $resolved = $resolved[$part] ?? [];
+    /**
+     * Walk a schema tree and recursively resolve any nested `$ref` references.
+     *
+     * Handles `properties`, `items`, `allOf`/`oneOf`/`anyOf` compositions,
+     * and `additionalProperties`.
+     *
+     * @param  array<string, mixed>  $schema
+     * @param  array<string, bool>  $visited  Tracks already-visited `$ref` paths to break circular chains.
+     * @return array<string, mixed>
+     */
+    private function resolveRefsRecursively(array $schema, array $visited = []): array
+    {
+        // Resolve nested $ref at the current level (chained refs)
+        if (isset($schema['$ref'])) {
+            return $this->resolveRef($schema, $visited);
         }
 
-        return is_array($resolved) ? $resolved : [];
+        // properties
+        if (isset($schema['properties']) && is_array($schema['properties'])) {
+            foreach ($schema['properties'] as $name => $property) {
+                if (is_array($property)) {
+                    $schema['properties'][$name] = $this->resolveRef($property, $visited);
+                }
+            }
+        }
+
+        // items (array schemas)
+        if (isset($schema['items']) && is_array($schema['items'])) {
+            $schema['items'] = $this->resolveRef($schema['items'], $visited);
+        }
+
+        // allOf / oneOf / anyOf
+        foreach (['allOf', 'oneOf', 'anyOf'] as $keyword) {
+            if (isset($schema[$keyword]) && is_array($schema[$keyword])) {
+                foreach ($schema[$keyword] as $i => $subSchema) {
+                    if (is_array($subSchema)) {
+                        $schema[$keyword][$i] = $this->resolveRef($subSchema, $visited);
+                    }
+                }
+            }
+        }
+
+        // additionalProperties
+        if (isset($schema['additionalProperties']) && is_array($schema['additionalProperties'])) {
+            $schema['additionalProperties'] = $this->resolveRef($schema['additionalProperties'], $visited);
+        }
+
+        return $schema;
     }
 
     /**
@@ -271,7 +350,7 @@ class OpenApiParser
      */
     private function buildTagIcons(): array
     {
-        $configIcons = config('docs-builder.api_tag_icons', []);
+        $configIcons = $this->tagIconOverrides;
 
         $defaultIcons = [
             'Authentication' => 'lock',

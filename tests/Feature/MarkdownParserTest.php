@@ -295,6 +295,80 @@ it('normalizes whitespace in plain text', function () {
         ->and($result['plainText'])->not->toMatch('/\s{2,}/');
 });
 
+// =========================================================================
+// VIDEO EDGE CASES
+// =========================================================================
+
+it('converts youtube embed url to responsive embed', function () {
+    $result = $this->parser->parseString('https://www.youtube.com/embed/dQw4w9WgXcQ');
+
+    expect($result['html'])->toContain('<div class="docs-video-wrapper">')
+        ->and($result['html'])->toContain('youtube-nocookie.com/embed/dQw4w9WgXcQ');
+});
+
+it('converts youtube url with extra query params to embed', function () {
+    $result = $this->parser->parseString('https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=120');
+
+    expect($result['html'])->toContain('youtube-nocookie.com/embed/dQw4w9WgXcQ');
+});
+
+it('converts player vimeo url to embed', function () {
+    $result = $this->parser->parseString('https://player.vimeo.com/video/987654321');
+
+    expect($result['html'])->toContain('<div class="docs-video-wrapper">')
+        ->and($result['html'])->toContain('player.vimeo.com/video/987654321');
+});
+
+it('does not embed video url inside inline text', function () {
+    $result = $this->parser->parseString('Visit https://vimeo.com/123456789 for details.');
+
+    expect($result['html'])->not->toContain('docs-video-wrapper');
+});
+
+// =========================================================================
+// MERMAID DIAGRAM SUPPORT
+// =========================================================================
+
+it('converts mermaid code block to interactive diagram', function () {
+    $result = $this->parser->parseString("```mermaid\ngraph TD;\n    A-->B;\n```");
+
+    expect($result['html'])->toContain('<div class="docs-mermaid-block">')
+        ->and($result['html'])->toContain('<pre class="mermaid">')
+        ->and($result['html'])->toContain('A-->B;')
+        ->and($result['html'])->toContain('data-mermaid-zoom-in')
+        ->and($result['html'])->toContain('data-mermaid-fullscreen');
+});
+
+it('does not wrap mermaid block in code block styling', function () {
+    $result = $this->parser->parseString("```mermaid\nsequenceDiagram\n    Alice->>Bob: Hello\n```");
+
+    expect($result['html'])->toContain('docs-mermaid-block')
+        ->and($result['html'])->not->toContain('docs-code-block');
+});
+
+// =========================================================================
+// IMAGE EDGE CASES
+// =========================================================================
+
+it('does not double-add lazy loading if already present', function () {
+    // parseString wraps img in figure and adds lazy loading; verify no duplication
+    $result = $this->parser->parseString('![test](img.png)');
+
+    // Count occurrences of loading="lazy"
+    $count = substr_count($result['html'], 'loading="lazy"');
+    expect($count)->toBe(1);
+});
+
+it('handles image with special characters in alt text', function () {
+    $result = $this->parser->parseString('![A "quoted" & special <image>](img.png)');
+
+    expect($result['html'])->toContain('<figure class="docs-figure">');
+});
+
+// =========================================================================
+// PLAIN TEXT EDGE CASES
+// =========================================================================
+
 it('truncates plain text to 1000 characters', function () {
     $file = $this->tempDir.'/test.md';
     $longText = str_repeat('This is a very long text. ', 50);
