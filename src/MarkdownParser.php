@@ -483,7 +483,6 @@ class MarkdownParser
     {
         // Remove code blocks entirely (not useful for search summaries)
         $text = preg_replace('/<pre[^>]*>.*?<\/pre>/s', '', $html) ?? '';
-        $text = preg_replace('/\s+/', ' ', $text) ?? '';
 
         // Strip HTML tags
         $text = strip_tags($text);
@@ -492,7 +491,7 @@ class MarkdownParser
         $text = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
 
         // Normalize whitespace
-        $text = preg_replace('/\s+/', ' ', $text);
+        $text = preg_replace('/\s+/', ' ', $text) ?? '';
 
         // Trim and limit to ~1000 chars for search index
         $text = trim($text);
