@@ -7,6 +7,10 @@
 
 # Docs Builder
 
+<p align="center">
+    <a href="https://docs-builder.lynkbyte.com/">https://docs-builder.lynkbyte.com/</a>
+</p>
+
 A Laravel package that compiles Markdown files and OpenAPI 3.x YAML specifications into a fully themed, searchable, static documentation site — with zero frontend build step required.
 
 ## Features
