@@ -16,6 +16,9 @@ export default defineConfig({
                 // Modern theme
                 'themes/modern': 'resources/js/themes/modern.js',
                 'themes/modern-css': 'resources/css/themes/modern.css',
+                // Aurora theme
+                'themes/aurora': 'resources/js/themes/aurora.js',
+                'themes/aurora-css': 'resources/css/themes/aurora.css',
             },
             output: {
                 entryFileNames: '[name].js',
