@@ -10,3 +10,7 @@ package-lock.json
 *.swp
 *.swo
 tests/temp/
+.playwright-mcp/
+reports/
+web-prototype/
+AI_CAPABILITIES_ROADMAP.md
