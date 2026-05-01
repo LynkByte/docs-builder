@@ -47,10 +47,10 @@ The package auto-discovers its service provider — no manual registration neede
 php artisan docs:init
 ```
 
-This creates:
-- `config/docs-builder.php` — the configuration file
+The command presents an interactive prompt to select which optional sections to include (API Reference, Examples). This creates:
+- `config/docs-builder.php` — the configuration file (tailored to your selections)
 - `docs/README.md` — a starter documentation page
-- `docs/openapi.yaml` — a minimal OpenAPI spec
+- `docs/openapi.yaml` — a minimal OpenAPI spec (only when API Reference is selected)
 
 **2. Build the documentation**
 
@@ -463,7 +463,7 @@ php artisan docs:build --skip-assets
 
 ### `docs:init`
 
-Scaffold a starter documentation directory with example files.
+Scaffold a starter documentation directory with example files. When run interactively, presents a multi-select prompt to choose which optional sections to include (API Reference, Examples). In non-interactive mode (CI, testing), all sections are included for backward compatibility.
 
 ```bash
 php artisan docs:init
@@ -472,10 +472,17 @@ php artisan docs:init
 | Option | Description |
 |--------|-------------|
 | `--force` | Overwrite existing config and stub files if they already exist. |
+| `--features=` | Comma-separated list of optional sections to include (`api_reference`, `examples`). Bypasses the interactive prompt. |
 
 ```bash
 # Overwrite existing files
 php artisan docs:init --force
+
+# Include only API Reference (skip interactive prompt)
+php artisan docs:init --features=api_reference
+
+# Include all features explicitly
+php artisan docs:init --features=api_reference,examples
 ```
 
 ### `docs:ai`
@@ -613,6 +620,7 @@ Results are grouped by section with icons and, for API endpoints, method badges.
 | [league/commonmark](https://commonmark.thephpleague.com/) | Markdown to HTML conversion with GFM extensions |
 | [symfony/yaml](https://symfony.com/doc/current/components/yaml.html) | OpenAPI YAML spec parsing |
 | [tempest/highlight](https://github.com/tempestphp/highlight) | Server-side syntax highlighting for code blocks |
+| [laravel/prompts](https://laravel.com/docs/prompts) | Interactive terminal prompts for `docs:init` and `docs:ai` commands |
 | [fuse.js](https://www.fusejs.io/) | Client-side fuzzy search (bundled in pre-compiled JS) |
 | [Mermaid JS](https://mermaid.js.org/) | Client-side diagram rendering (loaded from CDN) |
 | [Tailwind CSS v4](https://tailwindcss.com/) | Utility-first styling (bundled in pre-compiled CSS) |
